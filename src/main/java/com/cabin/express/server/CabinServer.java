@@ -1,15 +1,17 @@
 package com.cabin.express.server;
 
-import com.cabin.express.CabinJLogger;
-import com.cabin.express.http.CabinRequest;
-import com.cabin.express.http.CabinResponse;
-import com.cabin.express.router.CabinRouter;
+import com.cabin.express.CabinLogger;
+import com.cabin.express.http.Request;
+import com.cabin.express.http.Response;
+import com.cabin.express.router.Router;
 
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 /**
  * A simple HTTP server using Java NIO.
@@ -17,14 +19,15 @@ import java.util.Iterator;
  * Created: 2024-12-24
  */
 
-public class CabinJServer {
+public class CabinServer {
     private Selector selector;
-    private CabinRouter router;
+    private Router router;
+    private final List<Router> routers = new ArrayList<>();
 
     public void listen(int port) throws IOException {
         initializeServer(port);
 
-        CabinJLogger.info("Server started on port " + port);
+        CabinLogger.info("Server started on port " + port);
 
         // Event loop
         while (true) {
@@ -42,12 +45,12 @@ public class CabinJServer {
                         handleRead(key);
                     }
                 } catch (Exception e) {
-                    CabinJLogger.error("Error handling key: " + e.getMessage(), e);
+                    CabinLogger.error("Error handling key: " + e.getMessage(), e);
                     key.cancel(); // Cancel key to prevent further processing
                     try {
                         key.channel().close();
                     } catch (IOException ex) {
-                        CabinJLogger.error("Error closing channel: " + ex.getMessage(), ex);
+                        CabinLogger.error("Error closing channel: " + ex.getMessage(), ex);
                     }
                 }
             }
@@ -74,7 +77,7 @@ public class CabinJServer {
 
         // Register the new channel for reading
         clientChannel.register(selector, SelectionKey.OP_READ);
-        CabinJLogger.info("Accepted new connection from " + clientChannel.getRemoteAddress());
+        CabinLogger.info("Accepted new connection from " + clientChannel.getRemoteAddress());
     }
 
     private void handleRead(SelectionKey key) throws IOException {
@@ -86,13 +89,13 @@ public class CabinJServer {
 
             if (bytesRead == -1) {
                 // Client closed the connection
-                CabinJLogger.info("Client disconnected: " + clientChannel.getRemoteAddress());
+                CabinLogger.info("Client disconnected: " + clientChannel.getRemoteAddress());
                 clientChannel.close();
                 key.cancel();
                 return;
             } else if (bytesRead == 0) {
                 // No data read, but connection is still open
-                CabinJLogger.debug("No data received from: " + clientChannel.getRemoteAddress());
+                CabinLogger.debug("No data received from: " + clientChannel.getRemoteAddress());
                 return;
             }
 
@@ -103,16 +106,16 @@ public class CabinJServer {
 
             try (InputStream inputStream = new ByteArrayInputStream(data)) {
                 // Parse the HTTP request
-                CabinRequest request = new CabinRequest(inputStream);
+                Request request = new Request(inputStream);
 
                 // Prepare the response object
-                CabinResponse response = new CabinResponse(clientChannel);
+                Response response = new Response(clientChannel);
 
                 // Route the request
                 router.handle(request, response);
             }
         } catch (Exception e) {
-            CabinJLogger.error("Error processing request: " + e.getMessage(), e);
+            CabinLogger.error("Error processing request: " + e.getMessage(), e);
 
             // Respond with an internal server error
             try (OutputStream outputStream = clientChannel.socket().getOutputStream()) {
@@ -122,7 +125,7 @@ public class CabinJServer {
                 writer.println();
                 writer.flush();
             } catch (IOException ioException) {
-                CabinJLogger.error("Error sending 500 response: " + ioException.getMessage(), ioException);
+                CabinLogger.error("Error sending 500 response: " + ioException.getMessage(), ioException);
             } finally {
                 clientChannel.close();
                 key.cancel();
@@ -130,11 +133,11 @@ public class CabinJServer {
         }
     }
 
-    public void use(CabinRouter router) {
+    public void use(Router router) {
         this.router = router;
     }
 
-    public CabinRouter getRouter() {
+    public Router getRouter() {
         return this.router;
     }
 }

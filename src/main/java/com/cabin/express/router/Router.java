@@ -1,42 +1,42 @@
 package com.cabin.express.router;
 
-import com.cabin.express.http.CabinRequest;
-import com.cabin.express.http.CabinResponse;
-import com.cabin.express.inter.CabinHandler;
+import com.cabin.express.http.Request;
+import com.cabin.express.http.Response;
+import com.cabin.express.inter.Handler;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class CabinRouter {
-    private final Map<String, Map<String, CabinHandler>> routes = new HashMap<>();
+public class Router {
+    private final Map<String, Map<String, Handler>> routes = new HashMap<>();
 
-    private void addRoute(String method, String path, CabinHandler handler) {
+    private void addRoute(String method, String path, Handler handler) {
         method = method.toUpperCase();
         routes.putIfAbsent(method, new HashMap<>());
         routes.get(method).put(path, handler);
     }
 
-    public void get(String path, CabinHandler handler) {
+    public void get(String path, Handler handler) {
         addRoute("GET", path, handler);
     }
 
-    public void post(String path, CabinHandler handler) {
+    public void post(String path, Handler handler) {
         addRoute("POST", path, handler);
     }
 
-    public void put(String path, CabinHandler handler) {
+    public void put(String path, Handler handler) {
         addRoute("PUT", path, handler);
     }
 
-    public void delete(String path, CabinHandler handler) {
+    public void delete(String path, Handler handler) {
         addRoute("DELETE", path, handler);
     }
 
-    public void handle(CabinRequest request, CabinResponse response) throws Exception {
+    public void handle(Request request, Response response) throws Exception {
         String method = request.getMethod().toUpperCase();
         String path = request.getPath();
 
-        CabinHandler handler = routes.getOrDefault(method, new HashMap<>()).get(path);
+        Handler handler = routes.getOrDefault(method, new HashMap<>()).get(path);
 
         if (handler != null) {
             handler.handle(request, response);

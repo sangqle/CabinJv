@@ -8,14 +8,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
-public class CabinRequest {
+public class Request {
     private String method;
     private String path;
     private String body;
     private Map<String, String> queryParams = new HashMap<>();
     private Map<String, String> headers = new HashMap<>();
 
-    public CabinRequest(InputStream inputStream) throws Exception {
+    public Request(InputStream inputStream) throws Exception {
         parseRequest(inputStream);
     }
 

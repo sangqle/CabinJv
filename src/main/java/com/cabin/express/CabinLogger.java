@@ -4,7 +4,7 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class CabinJLogger {
+public class CabinLogger {
     private static final Logger logger = Logger.getLogger("CabinJ");
     private static boolean debugEnabled = false;
 

@@ -6,13 +6,13 @@ import java.nio.channels.SocketChannel;
 import java.util.HashMap;
 import java.util.Map;
 
-public class CabinResponse {
+public class Response {
     private int statusCode = 200;
     private Map<String, String> headers = new HashMap<>();
     private StringBuilder body = new StringBuilder();
     private final SocketChannel clientChannel;
 
-    public CabinResponse(SocketChannel clientChannel) {
+    public Response(SocketChannel clientChannel) {
         this.clientChannel = clientChannel;
     }
 
