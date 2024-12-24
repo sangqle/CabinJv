@@ -28,12 +28,14 @@ public class Main {
         router.addRoute("GET", "/hello", (request, response) -> {
             response.setStatusCode(200);
             response.writeBody("Hello, World!");
+            response.send();
         });
 
         router.addRoute("POST", "/data", (request, response) -> {
             String body = request.getBody();
             response.setStatusCode(200);
             response.writeBody("Data received: " + body);
+            response.send();
         });
         return router;
     }

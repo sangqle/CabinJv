@@ -53,6 +53,9 @@ public class CabinResponse {
         while (buffer.hasRemaining()) {
             clientChannel.write(buffer);
         }
+
+        // Close the connection
+        clientChannel.close();
     }
 
     private String getStatusMessage(int statusCode) {
