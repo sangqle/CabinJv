@@ -3,17 +3,13 @@ package com.cabin.express.server;
 import com.cabin.express.CabinJLogger;
 import com.cabin.express.http.CabinRequest;
 import com.cabin.express.http.CabinResponse;
-import com.cabin.express.router.Router;
+import com.cabin.express.router.CabinRouter;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.Socket;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
-import java.util.function.BiConsumer;
 
 /**
  * A simple HTTP server using Java NIO.
@@ -23,6 +19,7 @@ import java.util.function.BiConsumer;
 
 public class CabinJServer {
     private Selector selector;
+    private CabinRouter router;
 
     public void listen(int port) throws IOException {
         initializeServer(port);
@@ -84,38 +81,60 @@ public class CabinJServer {
         SocketChannel clientChannel = (SocketChannel) key.channel();
         ByteBuffer buffer = ByteBuffer.allocate(1024);
 
-        int bytesRead = clientChannel.read(buffer);
-        CabinJLogger.info("Bytes read: " + bytesRead);
+        try {
+            int bytesRead = clientChannel.read(buffer);
 
-        if (bytesRead == -1) {
-            // Client closed the connection
-            CabinJLogger.info("Client disconnected: " + clientChannel.getRemoteAddress());
-            clientChannel.close();
-            key.cancel();
-            return;
-        } else if (bytesRead == 0) {
-            // No data read, but connection is still open
-            CabinJLogger.debug("No data received from: " + clientChannel.getRemoteAddress());
-            return;
-        }
+            if (bytesRead == -1) {
+                // Client closed the connection
+                CabinJLogger.info("Client disconnected: " + clientChannel.getRemoteAddress());
+                clientChannel.close();
+                key.cancel();
+                return;
+            } else if (bytesRead == 0) {
+                // No data read, but connection is still open
+                CabinJLogger.debug("No data received from: " + clientChannel.getRemoteAddress());
+                return;
+            }
 
-        // Convert the ByteBuffer into an InputStream
-        buffer.flip(); // Prepare the buffer for reading
-        byte[] data = new byte[buffer.remaining()];
-        buffer.get(data);
+            // Convert the ByteBuffer into an InputStream
+            buffer.flip(); // Prepare the buffer for reading
+            byte[] data = new byte[buffer.remaining()];
+            buffer.get(data);
 
-        try (InputStream inputStream = new ByteArrayInputStream(data)) {
-            // Parse the HTTP request using the InputStream
-            CabinRequest request = new CabinRequest(inputStream);
+            try (InputStream inputStream = new ByteArrayInputStream(data)) {
+                // Parse the HTTP request
+                CabinRequest request = new CabinRequest(inputStream);
 
-            // Create a response object
+                // Prepare the response object
+                CabinResponse response = new CabinResponse(clientChannel);
 
-            // Write the response to the client
+                // Route the request
+                router.handle(request, response);
+            }
         } catch (Exception e) {
             CabinJLogger.error("Error processing request: " + e.getMessage(), e);
-            clientChannel.close();
-            key.cancel();
+
+            // Respond with an internal server error
+            try (OutputStream outputStream = clientChannel.socket().getOutputStream()) {
+                PrintWriter writer = new PrintWriter(outputStream);
+                writer.println("HTTP/1.1 500 Internal Server Error\r\n");
+                writer.println("Content-Length: 0\r\n");
+                writer.println();
+                writer.flush();
+            } catch (IOException ioException) {
+                CabinJLogger.error("Error sending 500 response: " + ioException.getMessage(), ioException);
+            } finally {
+                clientChannel.close();
+                key.cancel();
+            }
         }
     }
 
+    public void addRoute(CabinRouter router) {
+        this.router = router;
+    }
+
+    public CabinRouter getRouter() {
+        return this.router;
+    }
 }

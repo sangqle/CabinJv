@@ -1,7 +1,8 @@
 package com.cabin.express.http;
 
-import java.io.OutputStream;
-import java.io.PrintWriter;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -9,10 +10,10 @@ public class CabinResponse {
     private int statusCode = 200;
     private Map<String, String> headers = new HashMap<>();
     private StringBuilder body = new StringBuilder();
-    private final OutputStream outputStream;
+    private final SocketChannel clientChannel;
 
-    public CabinResponse(OutputStream outputStream) {
-        this.outputStream = outputStream;
+    public CabinResponse(SocketChannel clientChannel) {
+        this.clientChannel = clientChannel;
     }
 
     public void setStatusCode(int statusCode) {
@@ -27,13 +28,39 @@ public class CabinResponse {
         body.append(content);
     }
 
-    public void sendResponse() throws Exception {
-        PrintWriter writer = new PrintWriter(outputStream);
-        writer.printf("HTTP/1.1 %d OK\r\n", statusCode);
-        headers.forEach((key, value) -> writer.printf("%s: %s\r\n", key, value));
-        writer.printf("Content-Length: %d\r\n", body.length());
-        writer.print("\r\n");
-        writer.print(body.toString());
-        writer.flush();
+    public void send () throws IOException {
+        // Build the response string
+        StringBuilder response = new StringBuilder();
+
+        // Write the status line
+        String statusMessage = getStatusMessage(statusCode);
+        response.append(String.format("HTTP/1.1 %d %s\r\n", statusCode, statusMessage));
+
+        // Write headers
+        headers.forEach((key, value) -> response.append(String.format("%s: %s\r\n", key, value)));
+
+        // Write the Content-Length header
+        response.append(String.format("Content-Length: %d\r\n", body.length()));
+
+        // End of headers
+        response.append("\r\n");
+
+        // Write the body
+        response.append(body);
+
+        // Write the response to the SocketChannel using ByteBuffer
+        ByteBuffer buffer = ByteBuffer.wrap(response.toString().getBytes());
+        while (buffer.hasRemaining()) {
+            clientChannel.write(buffer);
+        }
+    }
+
+    private String getStatusMessage(int statusCode) {
+        return switch (statusCode) {
+            case 200 -> "OK";
+            case 404 -> "Not Found";
+            case 500 -> "Internal Server Error";
+            default -> "Unknown";
+        };
     }
 }
