@@ -21,7 +21,6 @@ import java.util.List;
 
 public class CabinServer {
     private Selector selector;
-    private Router router;
     private final List<Router> routers = new ArrayList<>();
 
     public void listen(int port) throws IOException {
@@ -111,8 +110,22 @@ public class CabinServer {
                 // Prepare the response object
                 Response response = new Response(clientChannel);
 
-                // Route the request
-                router.handle(request, response);
+                // Route the request using all registered routers
+                boolean handled = false;
+                for (Router router : routers) {
+                    if (router.routeRequest(request, response)) {
+                        handled = true;
+                        break;
+                    }
+                }
+
+                if (!handled) {
+                    // Respond with a 404 Not Found
+                    response.setStatusCode(404);
+                    response.writeBody("Not Found");
+                    response.send();
+                }
+
             }
         } catch (Exception e) {
             CabinLogger.error("Error processing request: " + e.getMessage(), e);
@@ -134,10 +147,6 @@ public class CabinServer {
     }
 
     public void use(Router router) {
-        this.router = router;
-    }
-
-    public Router getRouter() {
-        return this.router;
+        routers.add(router);
     }
 }

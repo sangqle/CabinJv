@@ -1,5 +1,6 @@
 package com.cabin.express.router;
 
+import com.cabin.express.CabinLogger;
 import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
 import com.cabin.express.inter.Handler;
@@ -32,7 +33,8 @@ public class Router {
         addRoute("DELETE", path, handler);
     }
 
-    public void handle(Request request, Response response) throws Exception {
+    @Deprecated
+    private void handle(Request request, Response response) throws Exception {
         String method = request.getMethod().toUpperCase();
         String path = request.getPath();
 
@@ -45,5 +47,31 @@ public class Router {
             response.writeBody("Not Found");
             response.send();
         }
+    }
+
+    // Attempt to route the request
+    public boolean routeRequest(Request request, Response response) {
+        String method = request.getMethod();
+        String path = request.getPath();
+
+        Handler handler = routes.getOrDefault(method, new HashMap<>()).get(path);
+
+        if (handler != null) {
+            try {
+                handler.handle(request, response);
+                response.send();
+                return true; // Indicates the request was handled
+            } catch (Exception e) {
+                CabinLogger.error("Error in route handler: " + e.getMessage(), e);
+                response.setStatusCode(500);
+                response.writeBody("Internal Server Error");
+                try {
+                    response.send();
+                } catch (Exception ex) {
+                    CabinLogger.error("Error sending error response: " + ex.getMessage(), ex);
+                }
+            }
+        }
+        return false; // Indicates the request was not handled
     }
 }

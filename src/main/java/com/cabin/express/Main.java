@@ -11,14 +11,21 @@ public class Main {
         CabinLogger.info("Starting CabinJ Framework...");
         try {
             CabinServer server = new CabinServer();
-            Router router = new Router();
+            Router appRouter = new Router();
+            Router apiRouter = new Router();
 
-            router.get("/", (req, res) -> {
+            appRouter.get("/", (req, res) -> {
                 res.writeBody("Hello, world!");
                 res.send();
             });
 
-            server.use(router);
+            apiRouter.post("/login", (req, res) -> {
+                res.writeBody("Login successful");
+                res.send();
+            });
+
+            server.use(appRouter);
+            server.use(apiRouter);
 
             server.listen(8080);
 
