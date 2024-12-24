@@ -130,7 +130,7 @@ public class CabinJServer {
         }
     }
 
-    public void addRoute(CabinRouter router) {
+    public void use(CabinRouter router) {
         this.router = router;
     }
 

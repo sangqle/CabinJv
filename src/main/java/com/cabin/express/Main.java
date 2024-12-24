@@ -11,32 +11,19 @@ public class Main {
         CabinJLogger.info("Starting CabinJ Framework...");
         try {
             CabinJServer server = new CabinJServer();
-            CabinRouter router = getCabinRouter();
+            CabinRouter router = new CabinRouter();
 
-            server.addRoute(router);
+            router.get("/", (req, res) -> {
+                res.writeBody("Hello, world!");
+                res.send();
+            });
+
+            server.use(router);
 
             server.listen(8080);
 
         } catch (Exception e) {
             CabinJLogger.error("Failed to start the server", e);
         }
-    }
-
-    private static CabinRouter getCabinRouter() {
-        CabinRouter router = new CabinRouter();
-        // Register GET /hello
-        router.addRoute("GET", "/hello", (request, response) -> {
-            response.setStatusCode(200);
-            response.writeBody("Hello, World!");
-            response.send();
-        });
-
-        router.addRoute("POST", "/data", (request, response) -> {
-            String body = request.getBody();
-            response.setStatusCode(200);
-            response.writeBody("Data received: " + body);
-            response.send();
-        });
-        return router;
     }
 }
