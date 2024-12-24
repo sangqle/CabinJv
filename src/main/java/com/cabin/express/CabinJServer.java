@@ -6,7 +6,7 @@ import java.nio.channels.*;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
 
-public class CabinJNIO {
+public class CabinJServer {
     private Selector selector;
 
     public void listen(int port) throws IOException {
@@ -21,7 +21,7 @@ public class CabinJNIO {
         // Register the channel with the selector for accepting connections
         serverChannel.register(selector, SelectionKey.OP_ACCEPT);
 
-        System.out.println("Server started on port " + port);
+        CabinJLogger.info("Server started on port " + port);
 
         // Event loop
         while (true) {
@@ -45,7 +45,7 @@ public class CabinJNIO {
         // Accept the connection
         SocketChannel clientChannel = serverChannel.accept();
         clientChannel.configureBlocking(false);
-        System.out.println("Accepted connection from " + clientChannel.getRemoteAddress());
+        CabinJLogger.info("Accepted connection from " + clientChannel.getRemoteAddress());
 
         // Register the new channel for reading
         clientChannel.register(selector, SelectionKey.OP_READ, ByteBuffer.allocate(1024));
@@ -64,7 +64,7 @@ public class CabinJNIO {
         // Flip the buffer for reading
         buffer.flip();
         String request = new String(buffer.array(), 0, buffer.limit());
-        System.out.println("Received request:\n" + request);
+        CabinJLogger.info("Received request:\n" + request);
 
         // Write a simple response
         String response = "HTTP/1.1 200 OK\r\n" + "Content-Type: text/plain\r\n" + "Content-Length: 13\r\n" + "\r\n" + "Hello, World!";
@@ -73,10 +73,5 @@ public class CabinJNIO {
         // Clear buffer for the next read
         buffer.clear();
         clientChannel.close();
-    }
-
-    public static void main(String[] args) throws IOException {
-        CabinJNIO server = new CabinJNIO();
-        server.listen(8080);
     }
 }
