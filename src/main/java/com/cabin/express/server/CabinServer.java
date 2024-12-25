@@ -3,6 +3,7 @@ package com.cabin.express.server;
 import com.cabin.express.CabinLogger;
 import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
+import com.cabin.express.interfaces.Middleware;
 import com.cabin.express.router.Router;
 
 import java.io.*;
@@ -112,14 +113,16 @@ public class CabinServer {
 
                 // Route the request using all registered routers
                 boolean handled = false;
+
+                // Handle the request using the routers
                 for (Router router : routers) {
-                    if (router.routeRequest(request, response)) {
-                        handled = true;
+                    handled = router.handleRequest(request, response);
+                    if (handled) {
                         break;
                     }
                 }
 
-                if (!handled) {
+                if(!handled) {
                     // Respond with a 404 Not Found
                     response.setStatusCode(404);
                     response.writeBody("Not Found");

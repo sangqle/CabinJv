@@ -1,5 +1,6 @@
 package com.cabin.express;
 
+import com.cabin.express.interfaces.Middleware;
 import com.cabin.express.router.Router;
 import com.cabin.express.server.CabinServer;
 
@@ -13,6 +14,23 @@ public class Main {
             CabinServer server = new CabinServer();
             Router appRouter = new Router();
             Router apiRouter = new Router();
+
+            Middleware authMiddleware = (request, response, next) -> {
+                CabinLogger.debug("Authenticating user...");
+                System.err.println("Body: " + request.getBody());
+
+                if(request.getBody().equals("Sang")) {
+                    next.next(request, response);
+                } else {
+                    response.writeBody("Unauthorized");
+                    response.setStatusCode(401);
+                    response.send();
+                }
+
+            };
+
+            apiRouter.use(authMiddleware);
+
 
             appRouter.get("/", (req, res) -> {
                 res.writeBody("Hello, world!");

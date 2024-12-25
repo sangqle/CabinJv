@@ -1,4 +1,4 @@
-package com.cabin.express.inter;
+package com.cabin.express.interfaces;
 
 import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
