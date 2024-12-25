@@ -3,7 +3,6 @@ package com.cabin.express.server;
 import com.cabin.express.CabinLogger;
 import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
-import com.cabin.express.interfaces.Middleware;
 import com.cabin.express.router.Router;
 
 import java.io.*;
@@ -13,6 +12,8 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * A simple HTTP server using Java NIO.
@@ -23,6 +24,7 @@ import java.util.List;
 public class CabinServer {
     private Selector selector;
     private final List<Router> routers = new ArrayList<>();
+    private final ExecutorService threadPool = Executors.newFixedThreadPool(10);
 
     public void listen(int port) throws IOException {
         initializeServer(port);
@@ -80,22 +82,34 @@ public class CabinServer {
         CabinLogger.info("Accepted new connection from " + clientChannel.getRemoteAddress());
     }
 
-    private void handleRead(SelectionKey key) throws IOException {
-        SocketChannel clientChannel = (SocketChannel) key.channel();
-        ByteBuffer buffer = ByteBuffer.allocate(1024);
+    private void handleRead(SelectionKey key) {
+        threadPool.submit(() -> {
+            try {
+                doProcess(key);
+            } catch (IOException e) {
+                System.err.println("Error processing request: " + e.getMessage());
+            }
+        });
+    }
 
+    private void doProcess(SelectionKey key) throws IOException {
+        SocketChannel clientChannel = (SocketChannel) key.channel();
         try {
+            ByteBuffer buffer = ByteBuffer.allocate(1024);
+
+            if (!clientChannel.isOpen()) {
+                return;
+            }
+
             int bytesRead = clientChannel.read(buffer);
 
             if (bytesRead == -1) {
                 // Client closed the connection
-                CabinLogger.info("Client disconnected: " + clientChannel.getRemoteAddress());
                 clientChannel.close();
                 key.cancel();
                 return;
             } else if (bytesRead == 0) {
                 // No data read, but connection is still open
-                CabinLogger.debug("No data received from: " + clientChannel.getRemoteAddress());
                 return;
             }
 
@@ -122,17 +136,14 @@ public class CabinServer {
                     }
                 }
 
-                if(!handled) {
+                if (!handled) {
                     // Respond with a 404 Not Found
                     response.setStatusCode(404);
                     response.writeBody("Not Found");
                     response.send();
                 }
-
             }
         } catch (Exception e) {
-            CabinLogger.error("Error processing request: " + e.getMessage(), e);
-
             // Respond with an internal server error
             try (OutputStream outputStream = clientChannel.socket().getOutputStream()) {
                 PrintWriter writer = new PrintWriter(outputStream);
@@ -140,8 +151,6 @@ public class CabinServer {
                 writer.println("Content-Length: 0\r\n");
                 writer.println();
                 writer.flush();
-            } catch (IOException ioException) {
-                CabinLogger.error("Error sending 500 response: " + ioException.getMessage(), ioException);
             } finally {
                 clientChannel.close();
                 key.cancel();
