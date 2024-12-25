@@ -4,6 +4,8 @@ import com.cabin.express.interfaces.Middleware;
 import com.cabin.express.router.Router;
 import com.cabin.express.server.CabinServer;
 
+import java.util.Map;
+
 public class Main {
     public static void main(String[] args) {
         boolean enableDebug = args.length > 0 && args[0].equalsIgnoreCase("--debug");
@@ -11,41 +13,38 @@ public class Main {
 
         CabinLogger.info("Starting CabinJ Framework...");
         try {
-            CabinServer server = new CabinServer();
+
+            CabinServer app = new CabinServer();
             Router appRouter = new Router();
             Router apiRouter = new Router();
 
-            Middleware authMiddleware = (request, response, next) -> {
-                CabinLogger.debug("Authenticating user...");
-                System.err.println("Body: " + request.getBody());
-
-                if(request.getBody().equals("Sang")) {
-                    next.next(request, response);
+            Middleware authMiddleware = (req, res, next) -> {
+                Map<String, Object> bodyAsJson = req.getBody();
+                if (bodyAsJson.getOrDefault("username", "").equals("Sang")) {
+                    next.next(req, res);
                 } else {
-                    response.writeBody("Unauthorized");
-                    response.setStatusCode(401);
-                    response.send();
+                    res.writeBody("Unauthorized");
+                    res.setStatusCode(401);
+                    res.send();
                 }
-
             };
-
-            apiRouter.use(authMiddleware);
-
 
             appRouter.get("/", (req, res) -> {
                 res.writeBody("Hello, world!");
                 res.send();
             });
 
-            apiRouter.post("/login", (req, res) -> {
-                res.writeBody("Login successful");
+            apiRouter.post("/private", (req, res) -> {
+                res.writeBody("This is private data");
                 res.send();
             });
 
-            server.use(appRouter);
-            server.use(apiRouter);
+            apiRouter.use(authMiddleware);
 
-            server.listen(8080);
+            app.use(appRouter);
+            app.use(apiRouter);
+
+            app.listen(8080);
 
         } catch (Exception e) {
             CabinLogger.error("Failed to start the server", e);

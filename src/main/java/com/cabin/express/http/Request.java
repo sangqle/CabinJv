@@ -1,5 +1,7 @@
 package com.cabin.express.http;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -12,12 +14,17 @@ public class Request {
     private String method;
     private String path;
     private String body;
+    private Map<String, Object> bodyAsJson = new HashMap<>();
     private Map<String, String> queryParams = new HashMap<>();
     private Map<String, String> headers = new HashMap<>();
 
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
     public Request(InputStream inputStream) throws Exception {
         parseRequest(inputStream);
+        parseBodyAsJson();
     }
+
 
     private void parseRequest(InputStream inputStream) throws Exception {
         BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
@@ -65,6 +72,22 @@ public class Request {
         }
     }
 
+    private void parseBodyAsJson() {
+        if (body != null && headers.containsKey("Content-Type")
+                && headers.get("Content-Type").toLowerCase().contains("application/json")) {
+            try {
+                bodyAsJson = objectMapper.readValue(body, Map.class);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Failed to parse JSON body: " + e.getMessage(), e);
+            }
+        }
+    }
+
+
+    public Map<String, Object> getBody() {
+        return bodyAsJson;
+    }
+
     public String getMethod() {
         return method;
     }
@@ -79,9 +102,5 @@ public class Request {
 
     public String getHeader(String key) {
         return headers.get(key);
-    }
-
-    public String getBody() {
-        return body;
     }
 }
