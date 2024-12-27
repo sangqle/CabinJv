@@ -3,6 +3,7 @@ package com.cabin.express;
 import com.cabin.express.interfaces.Middleware;
 import com.cabin.express.router.Router;
 import com.cabin.express.server.CabinServer;
+import com.cabin.express.server.ServerBuilder;
 
 import java.util.Map;
 
@@ -13,8 +14,8 @@ public class Main {
 
         CabinLogger.info("Starting CabinJ Framework...");
         try {
+            CabinServer server = new ServerBuilder().build();
 
-            CabinServer app = new CabinServer();
             Router appRouter = new Router();
             Router apiRouter = new Router();
 
@@ -41,10 +42,10 @@ public class Main {
 
             apiRouter.use(authMiddleware);
 
-            app.use(appRouter);
-            app.use(apiRouter);
+            server.use(appRouter);
+            server.use(apiRouter);
 
-            app.listen(8080);
+            server.start();
 
         } catch (Exception e) {
             CabinLogger.error("Failed to start the server", e);

@@ -4,6 +4,7 @@ import com.cabin.express.CabinLogger;
 import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
 import com.cabin.express.router.Router;
+import com.cabin.express.worker.CabinWorkerPool;
 
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -12,8 +13,6 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * A simple HTTP server using Java NIO.
@@ -24,10 +23,19 @@ import java.util.concurrent.Executors;
 public class CabinServer {
     private Selector selector;
     private final List<Router> routers = new ArrayList<>();
-    private final ExecutorService threadPool = Executors.newFixedThreadPool(10);
 
-    public void listen(int port) throws IOException {
-        initializeServer(port);
+    private final int port;
+    private final int threadPoolSize;
+    private final CabinWorkerPool workerPool;
+
+    protected CabinServer(int port, int threadPoolSize) {
+        this.port = port;
+        this.threadPoolSize = threadPoolSize;
+        this.workerPool = new CabinWorkerPool(threadPoolSize); // Initialize with configured size
+    }
+
+    public void start() throws IOException {
+        initializeServer();
 
         CabinLogger.info("Server started on port " + port);
 
@@ -44,22 +52,28 @@ public class CabinServer {
                     if (key.isAcceptable()) {
                         handleAccept((ServerSocketChannel) key.channel());
                     } else if (key.isReadable()) {
-                        handleRead(key);
+                        key.interestOps(0); // Disable read events
+                        workerPool.submitTask(() -> {
+                            try {
+                                handleRead(key);
+                            } catch (Exception e) {
+                                CabinLogger.error("Error processing request: " + e.getMessage(), e);
+                            } finally {
+                                key.interestOps(SelectionKey.OP_READ); // Re-enable read events
+                                selector.wakeup();
+                            }
+                        });
                     }
                 } catch (Exception e) {
-                    CabinLogger.error("Error handling key: " + e.getMessage(), e);
-                    key.cancel(); // Cancel key to prevent further processing
-                    try {
-                        key.channel().close();
-                    } catch (IOException ex) {
-                        CabinLogger.error("Error closing channel: " + ex.getMessage(), ex);
-                    }
+                    CabinLogger.error("Error processing request: " + e.getMessage(), e);
+                    key.cancel();
+                    key.channel().close();
                 }
             }
         }
     }
 
-    private void initializeServer(int port) throws IOException {
+    private void initializeServer() throws IOException {
         // Open a selector
         selector = Selector.open();
 
@@ -82,17 +96,7 @@ public class CabinServer {
         CabinLogger.info("Accepted new connection from " + clientChannel.getRemoteAddress());
     }
 
-    private void handleRead(SelectionKey key) {
-        threadPool.submit(() -> {
-            try {
-                doProcess(key);
-            } catch (IOException e) {
-                System.err.println("Error processing request: " + e.getMessage());
-            }
-        });
-    }
-
-    private void doProcess(SelectionKey key) throws IOException {
+    private void handleRead(SelectionKey key) throws IOException {
         SocketChannel clientChannel = (SocketChannel) key.channel();
         try {
             ByteBuffer buffer = ByteBuffer.allocate(1024);
