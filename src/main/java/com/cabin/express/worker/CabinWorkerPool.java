@@ -1,5 +1,6 @@
 package com.cabin.express.worker;
 
+import java.rmi.ServerError;
 import java.util.LinkedList;
 import java.util.Queue;
 
@@ -51,7 +52,7 @@ public class CabinWorkerPool {
                 try {
                     task.run(); // Execute the task
                 } catch (RuntimeException e) {
-                    System.err.println("Task execution failed: " + e.getMessage());
+                    System.err.println(String.format("Error executing task: %s, %s", e, e.getMessage()));
                 }
             }
         }

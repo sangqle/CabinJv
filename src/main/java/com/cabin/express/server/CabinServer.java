@@ -49,27 +49,45 @@ public class CabinServer {
                 keys.remove();
 
                 try {
-                    if (key.isAcceptable()) {
+                    if (key.isValid() && key.isAcceptable()) {
                         handleAccept((ServerSocketChannel) key.channel());
-                    } else if (key.isReadable()) {
-                        key.interestOps(0); // Disable read events
+                    } else if (key.isValid() && key.isReadable()) {
+                        // Disable read events temporarily
+                        key.interestOps(key.interestOps() & ~SelectionKey.OP_READ);
+
                         workerPool.submitTask(() -> {
                             try {
                                 handleRead(key);
                             } catch (Exception e) {
-                                CabinLogger.error("Error processing request: " + e.getMessage(), e);
+                                CabinLogger.error(String.format("Error handling read event: %s", e.getMessage()), e);
+                                try {
+                                    key.channel().close();
+                                } catch (IOException ex) {
+                                    CabinLogger.error("Error closing channel", ex);
+                                }
+                                key.cancel();
+                                ; // Cancel the key after handling the read event
                             } finally {
-                                key.interestOps(SelectionKey.OP_READ); // Re-enable read events
-                                selector.wakeup();
+                                if (key.isValid()) {
+                                    // Re-enable read events
+                                    key.interestOps(key.interestOps() | SelectionKey.OP_READ);
+                                    key.selector().wakeup(); // Wake up the selector to re-register the key
+                                }
                             }
                         });
                     }
+
                 } catch (Exception e) {
-                    CabinLogger.error("Error processing request: " + e.getMessage(), e);
-                    key.cancel();
-                    key.channel().close();
+                    CabinLogger.error(String.format("Error handling key: %s", e.getMessage()), e);
+                    try {
+                        key.channel().close();
+                    } catch (IOException ex) {
+                        CabinLogger.error("Error closing channel", ex);
+                    }
+                    key.cancel(); // Cancel the key after handling the event
                 }
             }
+
         }
     }
 
@@ -117,48 +135,47 @@ public class CabinServer {
                 return;
             }
 
-            // Convert the ByteBuffer into an InputStream
-            buffer.flip(); // Prepare the buffer for reading
+            buffer.flip(); // Prepare buffer for reading
             byte[] data = new byte[buffer.remaining()];
             buffer.get(data);
 
             try (InputStream inputStream = new ByteArrayInputStream(data)) {
-                // Parse the HTTP request
                 Request request = new Request(inputStream);
-
-                // Prepare the response object
                 Response response = new Response(clientChannel);
 
-                // Route the request using all registered routers
                 boolean handled = false;
-
-                // Handle the request using the routers
                 for (Router router : routers) {
-                    handled = router.handleRequest(request, response);
-                    if (handled) {
+                    if (router.handleRequest(request, response)) {
+                        handled = true;
                         break;
                     }
                 }
 
                 if (!handled) {
-                    // Respond with a 404 Not Found
                     response.setStatusCode(404);
                     response.writeBody("Not Found");
                     response.send();
                 }
             }
+        } catch (IOException e) {
+            CabinLogger.error("Error handling read event: " + e.getMessage(), e);
+            closeChannelAndCancelKey(clientChannel, key);
         } catch (Exception e) {
-            // Respond with an internal server error
-            try (OutputStream outputStream = clientChannel.socket().getOutputStream()) {
-                PrintWriter writer = new PrintWriter(outputStream);
-                writer.println("HTTP/1.1 500 Internal Server Error\r\n");
-                writer.println("Content-Length: 0\r\n");
-                writer.println();
-                writer.flush();
-            } finally {
-                clientChannel.close();
+            CabinLogger.error("Unexpected error handling read event: " + e.getMessage(), e);
+            closeChannelAndCancelKey(clientChannel, key);
+        }
+    }
+
+    private void closeChannelAndCancelKey(SocketChannel channel, SelectionKey key) {
+        try {
+            if (key != null) {
                 key.cancel();
             }
+            if (channel != null && channel.isOpen()) {
+                channel.close();
+            }
+        } catch (IOException ex) {
+            CabinLogger.error("Error closing channel: " + ex.getMessage(), ex);
         }
     }
 

@@ -3,6 +3,7 @@ package com.cabin.express.http;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,29 +30,39 @@ public class Response {
     }
 
     public void send () throws IOException {
-        // Build the response string
-        StringBuilder response = new StringBuilder();
+        // Write headers and status line
+        StringBuilder headersBuilder = new StringBuilder();
 
-        // Write the status line
+        // Status line
         String statusMessage = getStatusMessage(statusCode);
-        response.append(String.format("HTTP/1.1 %d %s\r\n", statusCode, statusMessage));
+        headersBuilder.append(String.format("HTTP/1.1 %d %s\r\n", statusCode, statusMessage));
 
-        // Write headers
-        headers.forEach((key, value) -> response.append(String.format("%s: %s\r\n", key, value)));
+        // Headers
+        headers.forEach((key, value) -> headersBuilder.append(String.format("%s: %s\r\n", key, value)));
 
-        // Write the Content-Length header
-        response.append(String.format("Content-Length: %d\r\n", body.length()));
+        // Content-Length
+        int contentLength = body != null ? body.length() : 0;
+        headersBuilder.append(String.format("Content-Length: %d\r\n", contentLength));
 
         // End of headers
-        response.append("\r\n");
+        headersBuilder.append("\r\n");
 
-        // Write the body
-        response.append(body);
+        // Convert headers to bytes
+        ByteBuffer headerBuffer = ByteBuffer.wrap(headersBuilder.toString().getBytes(StandardCharsets.UTF_8));
 
-        // Write the response to the SocketChannel using ByteBuffer
-        ByteBuffer buffer = ByteBuffer.wrap(response.toString().getBytes());
-        while (buffer.hasRemaining()) {
-            clientChannel.write(buffer);
+        // Convert body to bytes (if not null)
+        ByteBuffer bodyBuffer = body != null ? ByteBuffer.wrap(body.toString().getBytes(StandardCharsets.UTF_8)) : null;
+
+        // Write the headers first
+        while (headerBuffer.hasRemaining()) {
+            clientChannel.write(headerBuffer);
+        }
+
+        // Write the body if it exists
+        if (bodyBuffer != null) {
+            while (bodyBuffer.hasRemaining()) {
+                clientChannel.write(bodyBuffer);
+            }
         }
     }
 
