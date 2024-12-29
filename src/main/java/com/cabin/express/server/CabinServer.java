@@ -26,13 +26,13 @@ public class CabinServer {
     private final List<Router> routers = new ArrayList<>();
 
     private final int port;
-    private final int threadPoolSize;
+    private final int maxPoolSize;
     private final CabinWorkerPool workerPool;
 
-    protected CabinServer(int port, int threadPoolSize) {
+    protected CabinServer(int port, int maxPoolSize) {
         this.port = port;
-        this.threadPoolSize = threadPoolSize;
-        this.workerPool = new CabinWorkerPool(threadPoolSize); // Initialize with configured size
+        this.maxPoolSize = maxPoolSize;
+        this.workerPool = new CabinWorkerPool(maxPoolSize > 4 ? maxPoolSize / 4 : 1 , maxPoolSize); // Initialize with configured size
     }
 
     public void start() throws IOException {

@@ -1,60 +1,35 @@
 package com.cabin.express.worker;
 
-import java.rmi.ServerError;
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.concurrent.*;
 
 public class CabinWorkerPool {
-    private final Queue<Runnable> taskQueue = new LinkedList<>();
-    private final Thread[] workers;
+    private final ThreadPoolExecutor threadPoolExecutor;
 
-    private boolean isStopped = false;
 
-    public CabinWorkerPool(int poolSize) {
-        workers = new Thread[poolSize];
-        for (int i = 0; i < poolSize; i++) {
-            workers[i] = new Worker();
-            workers[i].start();
-        }
+    public CabinWorkerPool(int poolSize, int maxPoolSize) {
+        threadPoolExecutor = new ThreadPoolExecutor(poolSize, maxPoolSize, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
+
     }
 
-    public synchronized void submitTask(Runnable task) {
-        if (isStopped) {
+    public void submitTask(Runnable task) {
+        if (threadPoolExecutor.isShutdown()) {
             throw new IllegalStateException("The pool is stopped");
         }
-        taskQueue.add(task);
-        notify();
+        threadPoolExecutor.submit(task);
     }
 
-    public synchronized void shutdown() {
-        isStopped = true;
-        notifyAll();
-    }
-
-    private class Worker extends Thread {
-        @Override
-        public void run() {
-            Runnable task;
-            while (true) {
-                synchronized (CabinWorkerPool.this) {
-                    while (taskQueue.isEmpty() && !isStopped) {
-                        try {
-                            CabinWorkerPool.this.wait();
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                        }
-                    }
-                    if (isStopped && taskQueue.isEmpty()) {
-                        break; // Exit if the pool is stopped and no tasks remain
-                    }
-                    task = taskQueue.poll(); // Fetch a task from the queue
-                }
-                try {
-                    task.run(); // Execute the task
-                } catch (RuntimeException e) {
-                    System.err.println(String.format("Error executing task: %s, %s", e, e.getMessage()));
+    public void shutdown() {
+        threadPoolExecutor.shutdown();
+        try {
+            if (!threadPoolExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
+                threadPoolExecutor.shutdownNow();
+                if (!threadPoolExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
+                    System.err.println("Executor service did not terminate");
                 }
             }
+        } catch (InterruptedException e) {
+            threadPoolExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
         }
     }
 }
