@@ -7,6 +7,7 @@ import com.cabin.express.router.Router;
 import com.cabin.express.worker.CabinWorkerPool;
 
 import java.io.*;
+import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.net.InetSocketAddress;
@@ -66,7 +67,6 @@ public class CabinServer {
                                     CabinLogger.error("Error closing channel", ex);
                                 }
                                 key.cancel();
-                                ; // Cancel the key after handling the read event
                             } finally {
                                 if (key.isValid()) {
                                     // Re-enable read events
@@ -120,6 +120,7 @@ public class CabinServer {
             ByteBuffer buffer = ByteBuffer.allocate(1024);
 
             if (!clientChannel.isOpen()) {
+                CabinLogger.info("Channel is closed: " + clientChannel.getRemoteAddress());
                 return;
             }
 
@@ -127,36 +128,41 @@ public class CabinServer {
 
             if (bytesRead == -1) {
                 // Client closed the connection
-                clientChannel.close();
-                key.cancel();
-                return;
-            } else if (bytesRead == 0) {
-                // No data read, but connection is still open
+                CabinLogger.info("Client closed connection: " + clientChannel.getRemoteAddress());
+                closeChannelAndCancelKey(clientChannel, key);
                 return;
             }
+            if (bytesRead > 0) {
+                buffer.flip(); // Prepare buffer for reading
+                byte[] data = new byte[buffer.remaining()];
+                buffer.get(data);
 
-            buffer.flip(); // Prepare buffer for reading
-            byte[] data = new byte[buffer.remaining()];
-            buffer.get(data);
+                try (InputStream inputStream = new ByteArrayInputStream(data)) {
+                    Request request = new Request(inputStream);
+                    Response response = new Response(clientChannel);
 
-            try (InputStream inputStream = new ByteArrayInputStream(data)) {
-                Request request = new Request(inputStream);
-                Response response = new Response(clientChannel);
+                    boolean handled = false;
+                    for (Router router : routers) {
+                        if (router.handleRequest(request, response)) {
+                            handled = true;
+                            break;
+                        }
+                    }
 
-                boolean handled = false;
-                for (Router router : routers) {
-                    if (router.handleRequest(request, response)) {
-                        handled = true;
-                        break;
+                    if (!handled) {
+                        response.setStatusCode(404);
+                        response.writeBody("Not Found");
+                        response.send();
                     }
                 }
-
-                if (!handled) {
-                    response.setStatusCode(404);
-                    response.writeBody("Not Found");
-                    response.send();
-                }
             }
+        } catch (SocketException e) {
+            if ("Connection reset".equals(e.getMessage())) {
+                CabinLogger.info("Connection reset by peer: " + e.getMessage());
+            } else {
+                CabinLogger.error("Socket exception: " + e.getMessage(), e);
+            }
+            closeChannelAndCancelKey(clientChannel, key);
         } catch (IOException e) {
             CabinLogger.error("Error handling read event: " + e.getMessage(), e);
             closeChannelAndCancelKey(clientChannel, key);
