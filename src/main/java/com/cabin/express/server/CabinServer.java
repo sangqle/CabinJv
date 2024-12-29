@@ -3,6 +3,7 @@ package com.cabin.express.server;
 import com.cabin.express.CabinLogger;
 import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
+import com.cabin.express.interfaces.Middleware;
 import com.cabin.express.router.Router;
 import com.cabin.express.worker.CabinWorkerPool;
 
@@ -32,7 +33,7 @@ public class CabinServer {
     protected CabinServer(int port, int maxPoolSize) {
         this.port = port;
         this.maxPoolSize = maxPoolSize;
-        this.workerPool = new CabinWorkerPool(maxPoolSize > 4 ? maxPoolSize / 4 : 1 , maxPoolSize); // Initialize with configured size
+        this.workerPool = new CabinWorkerPool(maxPoolSize > 4 ? maxPoolSize / 4 : 1, maxPoolSize); // Initialize with configured size
     }
 
     public void start() throws IOException {
@@ -187,5 +188,11 @@ public class CabinServer {
 
     public void use(Router router) {
         routers.add(router);
+    }
+
+    public void use(Middleware middleware) {
+        for (Router router : routers) {
+            router.use(middleware);
+        }
     }
 }

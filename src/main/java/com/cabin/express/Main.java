@@ -40,8 +40,6 @@ public class Main {
                 res.send();
             });
 
-            apiRouter.use(authMiddleware);
-
             server.use(appRouter);
             server.use(apiRouter);
 
