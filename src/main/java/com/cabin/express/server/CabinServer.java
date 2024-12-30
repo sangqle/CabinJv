@@ -1,6 +1,5 @@
 package com.cabin.express.server;
 
-import com.cabin.express.interfaces.Handler;
 import com.cabin.express.loggger.CabinLogger;
 import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;

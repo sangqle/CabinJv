@@ -1,33 +1,19 @@
 package com.cabin.express.zdemo;
 
 import com.cabin.express.router.Router;
-
-import java.util.Set;
+import com.cabin.express.zdemo.handler.AppHandler;
 
 public class AppRouter {
 
-    private Router router = new Router();
+    public static final AppRouter Instance = new AppRouter();
+    public static final String API_PREFIX = "/api";
 
-    public static final AppRouter INSTANCE = new AppRouter();
+    public Router registerRoutes() {
+        Router router = new Router();
 
-    private AppRouter() {
-        init();
-    }
+        router.get("/hello", AppHandler.Instance::hello);
+        router.get("/users", AppHandler.Instance::getUserInfo);
 
-    public Router getRouter() {
         return router;
     }
-
-    public void init() {
-        router.get("/hello", (req, res) -> {
-            res.writeBody("Hello, world!");
-            res.send();
-        });
-
-        router.post("/private-v2", (req, res) -> {
-            res.writeBody("This is private data...");
-            res.send();
-        });
-    }
-
 }
