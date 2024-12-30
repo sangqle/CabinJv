@@ -1,4 +1,4 @@
-package com.cabin.express;
+package com.cabin.express.loggger;
 
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;

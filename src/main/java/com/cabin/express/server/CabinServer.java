@@ -1,6 +1,7 @@
 package com.cabin.express.server;
 
-import com.cabin.express.CabinLogger;
+import com.cabin.express.interfaces.Handler;
+import com.cabin.express.loggger.CabinLogger;
 import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
 import com.cabin.express.interfaces.Middleware;
@@ -12,9 +13,7 @@ import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 /**
  * A simple HTTP server using Java NIO.
@@ -25,6 +24,9 @@ import java.util.List;
 public class CabinServer {
     private Selector selector;
     private final List<Router> routers = new ArrayList<>();
+
+    private Map<String, Boolean> endpointMap = new HashMap<>();
+
 
     private final int port;
     private final int maxPoolSize;
@@ -187,6 +189,24 @@ public class CabinServer {
     }
 
     public void use(Router router) {
+        // Validate the router
+        if (router == null) {
+            throw new IllegalArgumentException("Router cannot be null");
+        }
+        // Validate the router to ensure not adding the same router multiple times
+        if (routers.contains(router)) {
+            throw new IllegalArgumentException("Router already added");
+        }
+
+        // Validate the router with the same path
+        for (Router r : routers) {
+            Set<String> endpoint = r.getEndpoint();
+            for (String path : endpoint) {
+                if (router.getEndpoint().contains(path)) {
+                    throw new IllegalArgumentException(String.format("Router with path %s already exists", path));
+                }
+            }
+        }
         routers.add(router);
     }
 

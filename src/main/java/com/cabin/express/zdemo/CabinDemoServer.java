@@ -1,5 +1,6 @@
-package com.cabin.express;
+package com.cabin.express.zdemo;
 
+import com.cabin.express.loggger.CabinLogger;
 import com.cabin.express.interfaces.Middleware;
 import com.cabin.express.router.Router;
 import com.cabin.express.server.CabinServer;
@@ -7,7 +8,7 @@ import com.cabin.express.server.ServerBuilder;
 
 import java.util.Map;
 
-public class Main {
+public class CabinDemoServer  {
     public static void main(String[] args) {
         boolean enableDebug = args.length > 0 && args[0].equalsIgnoreCase("--debug");
         CabinLogger.setDebug(enableDebug);
@@ -15,9 +16,6 @@ public class Main {
         CabinLogger.info("Starting CabinJ Framework...");
         try {
             CabinServer server = new ServerBuilder().build();
-
-            Router appRouter = new Router();
-            Router apiRouter = new Router();
 
             Middleware authMiddleware = (req, res, next) -> {
                 Map<String, Object> bodyAsJson = req.getBody();
@@ -30,18 +28,8 @@ public class Main {
                 }
             };
 
-            appRouter.get("/", (req, res) -> {
-                res.writeBody("Hello, world!");
-                res.send();
-            });
-
-            apiRouter.post("/private", (req, res) -> {
-                res.writeBody("This is private data");
-                res.send();
-            });
-
-            server.use(appRouter);
-            server.use(apiRouter);
+            server.use(ApiRouter.INSTANCE.getRouter());
+            server.use(AppRouter.INSTANCE.getRouter());
 
             server.start();
 

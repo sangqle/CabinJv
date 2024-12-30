@@ -1,26 +1,25 @@
 package com.cabin.express.router;
 
-import com.cabin.express.CabinLogger;
+import com.cabin.express.loggger.CabinLogger;
 import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
 import com.cabin.express.interfaces.Handler;
 import com.cabin.express.interfaces.Middleware;
 import com.cabin.express.middleware.MiddlewareChain;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Router {
-    private final Map<String, Map<String, Handler>> routes = new HashMap<>();
+
+    private static final String name = "Router";
+    private final Map<String, Map<String, Handler>> methodRoutes = new HashMap<>();
     private final List<Middleware> middlewares = new ArrayList<>();
 
     private void addRoute(String method, String path, Handler handler) {
         method = method.toUpperCase();
-        routes.putIfAbsent(method, new HashMap<>());
-        routes.get(method).put(path, handler);
+        methodRoutes.putIfAbsent(method, new HashMap<>());
+        methodRoutes.get(method).put(path, handler);
     }
 
     public void get(String path, Handler handler) {
@@ -39,33 +38,6 @@ public class Router {
         addRoute("DELETE", path, handler);
     }
 
-    // Attempt to route the request
-//    public boolean routeRequest(Request request, Response response) {
-//        String method = request.getMethod();
-//        String path = request.getPath();
-//
-//        Handler handler = routes.getOrDefault(method, new HashMap<>()).get(path);
-//
-//        if (handler != null) {
-//            try {
-//                handler.handle(request, response);
-//                response.send();
-//                return true; // Indicates the request was handled
-//            } catch (Exception e) {
-//                CabinLogger.error("Error in route handler: " + e.getMessage(), e);
-//                response.setStatusCode(500);
-//                response.writeBody("Internal Server Error");
-//                try {
-//                    response.send();
-//                } catch (Exception ex) {
-//                    CabinLogger.error("Error sending error response: " + ex.getMessage(), ex);
-//                }
-//            }
-//        }
-//        return false; // Indicates the request was not handled
-//    }
-
-
     // Handle an incoming request, applying middleware and routing
     public boolean handleRequest(Request request, Response response) {
         // Wrap route handling in a middleware chain
@@ -73,7 +45,7 @@ public class Router {
 
         String method = request.getMethod();
         String path = request.getPath();
-        Handler handler = routes.getOrDefault(method, new HashMap<>()).get(path);
+        Handler handler = methodRoutes.getOrDefault(method, new HashMap<>()).get(path);
 
         if (handler == null) {
             return false;
@@ -107,5 +79,15 @@ public class Router {
 
     public void use(Middleware middleware) {
         middlewares.add(middleware);
+    }
+
+    public Set<String> getEndpoint  () {
+        Set<String> endpoints = new HashSet<>();
+        for (Map.Entry<String, Map<String, Handler>> entry : methodRoutes.entrySet()) {
+            for (String path : entry.getValue().keySet()) {
+                endpoints.add(entry.getKey() + "-" + path);
+            }
+        }
+        return endpoints;
     }
 }
