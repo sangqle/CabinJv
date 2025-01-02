@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class Router {
 
     private static final String name = "Router";
+    private String prefix = "";
     private final Map<String, Map<String, Handler>> methodRoutes = new HashMap<>();
     private final List<Middleware> middlewares = new ArrayList<>();
 
@@ -23,18 +24,30 @@ public class Router {
     }
 
     public void get(String path, Handler handler) {
+        if (prefix != "") {
+            path = prefix + path;
+        }
         addRoute("GET", path, handler);
     }
 
     public void post(String path, Handler handler) {
+        if (prefix != "") {
+            path = prefix + path;
+        }
         addRoute("POST", path, handler);
     }
 
     public void put(String path, Handler handler) {
+        if (prefix != "") {
+            path = prefix + path;
+        }
         addRoute("PUT", path, handler);
     }
 
     public void delete(String path, Handler handler) {
+        if (prefix != "") {
+            path = prefix + path;
+        }
         addRoute("DELETE", path, handler);
     }
 
@@ -81,7 +94,30 @@ public class Router {
         middlewares.add(middleware);
     }
 
-    public Set<String> getEndpoint  () {
+    public void setPrefix(String prefix) {
+        // check and replace the prefix in the existing routes with the new prefix by all methods
+        Map<String, Map<String, Handler>> newMethodRoutes = new HashMap<>();
+        for (Map.Entry<String, Map<String, Handler>> entry : methodRoutes.entrySet()) {
+            Map<String, Handler> newRoutes = new HashMap<>();
+            // Endpoint path
+            for (Map.Entry<String, Handler> route : entry.getValue().entrySet()) {
+                String path = route.getKey();
+                if(this.prefix.isEmpty()) {
+                    path = prefix + path;
+                } else {
+                    path = path.replace(this.prefix, "");
+                    path = prefix + path;
+                }
+                newRoutes.put(path, route.getValue());
+            }
+            newMethodRoutes.put(entry.getKey(), newRoutes);
+        }
+        methodRoutes.clear();
+        methodRoutes.putAll(newMethodRoutes);
+        this.prefix = prefix;
+    }
+
+    public Set<String> getEndpoint() {
         Set<String> endpoints = new HashSet<>();
         for (Map.Entry<String, Map<String, Handler>> entry : methodRoutes.entrySet()) {
             for (String path : entry.getValue().keySet()) {

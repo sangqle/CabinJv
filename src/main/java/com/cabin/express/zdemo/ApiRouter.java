@@ -8,6 +8,7 @@ public class ApiRouter {
 
     public Router registerRoutes() {
         Router router = new Router();
+
         router.get("/", (req, res) -> {
             res.writeBody("this is api router !");
             res.send();

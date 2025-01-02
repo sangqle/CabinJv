@@ -11,8 +11,13 @@ public class AppRouter {
     public Router registerRoutes() {
         Router router = new Router();
 
+        router.setPrefix(API_PREFIX);
+
         router.get("/hello", AppHandler.Instance::hello);
         router.get("/users", AppHandler.Instance::getUserInfo);
+
+
+        System.err.println("Endpoints registered: " + router.getEndpoint());
 
         return router;
     }
