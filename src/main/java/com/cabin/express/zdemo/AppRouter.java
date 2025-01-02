@@ -1,5 +1,6 @@
 package com.cabin.express.zdemo;
 
+import com.cabin.express.interfaces.Middleware;
 import com.cabin.express.router.Router;
 import com.cabin.express.zdemo.handler.AppHandler;
 
