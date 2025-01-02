@@ -95,19 +95,19 @@ public class Router {
     }
 
     public void setPrefix(String prefix) {
-        // check and replace the prefix in the existing routes with the new prefix by all methods
+        if (prefix == null || prefix.isEmpty()) {
+            return;
+        }
+        // Normalize the prefix
+        prefix = "/" + prefix.replaceAll("^/+", "").replaceAll("/+$", "");
+
         Map<String, Map<String, Handler>> newMethodRoutes = new HashMap<>();
         for (Map.Entry<String, Map<String, Handler>> entry : methodRoutes.entrySet()) {
             Map<String, Handler> newRoutes = new HashMap<>();
-            // Endpoint path
             for (Map.Entry<String, Handler> route : entry.getValue().entrySet()) {
                 String path = route.getKey();
-                if(this.prefix.isEmpty()) {
-                    path = prefix + path;
-                } else {
-                    path = path.replace(this.prefix, "");
-                    path = prefix + path;
-                }
+                path = path.replaceFirst("^" + this.prefix, "");
+                path = prefix + path;
                 newRoutes.put(path, route.getValue());
             }
             newMethodRoutes.put(entry.getKey(), newRoutes);

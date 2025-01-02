@@ -6,7 +6,7 @@ import com.cabin.express.zdemo.handler.AppHandler;
 public class AppRouter {
 
     public static final AppRouter Instance = new AppRouter();
-    public static final String API_PREFIX = "/api";
+    public static final String API_PREFIX = "/api/v1";
 
     public Router registerRoutes() {
         Router router = new Router();
