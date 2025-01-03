@@ -51,7 +51,13 @@ public class Router {
         addRoute("DELETE", path, handler);
     }
 
-    // Handle an incoming request, applying middleware and routing
+    /**
+     * Handle a request
+     *
+     * @param request  the request object
+     * @param response the response object
+     * @return true if the request was handled, false otherwise
+     */
     public boolean handleRequest(Request request, Response response) {
         // Wrap route handling in a middleware chain
         AtomicBoolean handled = new AtomicBoolean(false);
@@ -94,6 +100,13 @@ public class Router {
         middlewares.add(middleware);
     }
 
+    /**
+     * Sets the prefix for all routes in this router.
+     * <p>
+     * The prefix is prepended to all routes in this router. For example, if the prefix is "/api/v1",
+     *
+     * @param prefix the new prefix to set for all routes. If null or empty, the method does nothing.
+     */
     public void setPrefix(String prefix) {
         if (prefix == null || prefix.isEmpty()) {
             return;
