@@ -4,6 +4,7 @@ import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
 
 import java.io.IOException;
+import java.util.Map;
 
 public class AppHandler {
     public static final AppHandler Instance = new AppHandler();
@@ -20,10 +21,14 @@ public class AppHandler {
         resp.send();
     }
 
-    public void getUserInfo(Request req, Response resp) throws IOException {
-        String userId = req.getPathParam("userId");
+    public void updateUserInfo(Request req, Response resp) throws IOException {
+        Long userId = req.getPathParamAsLong("userId", 0L);
         System.err.println("User ID: " + userId);
+        Map<String, Object> body = req.getBody();
+
+        System.err.println("Request body: " + body);
         resp.writeBody("User ID: " + userId);
+
         resp.send();
     }
 }

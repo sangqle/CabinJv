@@ -26,6 +26,29 @@ public class Request {
         parseBodyAsJson();
     }
 
+    public String getMethod() {
+        return method;
+    }
+
+    public String getPath() {
+        return path;
+    }
+
+    public String getHeader(String key) {
+        return headers.get(key);
+    }
+
+    public String getPathParam(String key) {
+        return pathParams.get(key);
+    }
+
+    public void setQueryParams(Map<String, String> queryParams) {
+        this.queryParams = queryParams;
+    }
+
+    public void setPathParams(Map<String, String> pathParams) {
+        this.pathParams = pathParams;
+    }
 
     private void parseRequest(InputStream inputStream) throws Exception {
         BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
@@ -74,8 +97,7 @@ public class Request {
     }
 
     private void parseBodyAsJson() {
-        if (body != null && headers.containsKey("Content-Type")
-                && headers.get("Content-Type").toLowerCase().contains("application/json")) {
+        if (body != null && headers.containsKey("Content-Type") && headers.get("Content-Type").toLowerCase().contains("application/json")) {
             try {
                 bodyAsJson = objectMapper.readValue(body, Map.class);
             } catch (Exception e) {
@@ -84,79 +106,103 @@ public class Request {
         }
     }
 
-
     public Map<String, Object> getBody() {
         return bodyAsJson;
     }
 
-    public String getMethod() {
-        return method;
-    }
-
-    public String getPath() {
-        return path;
-    }
-
-    public String getQueryParam(String key) {
-        return queryParams.get(key);
-    }
-
-    public String getHeader(String key) {
-        return headers.get(key);
-    }
-
-    public String getPathParam(String key) {
-        return pathParams.get(key);
-    }
-
-    public void setPathParam(String key, String value) {
-        pathParams.put(key, value);
-    }
-
-    public void setHeader(String key, String value) {
-        headers.put(key, value);
-    }
-
-    public void setBody(String body) {
-        this.body = body;
-    }
-
-    public void setBody(Map<String, Object> body) {
-        try {
-            this.body = objectMapper.writeValueAsString(body);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Failed to serialize body to JSON: " + e.getMessage(), e);
-        }
-    }
-
-    public void setQueryParam(String key, String value) {
-        queryParams.put(key, value);
-    }
-
-    public void setMethod(String method) {
-        this.method = method;
-    }
-
-    public void setPath(String path) {
-        this.path = path;
-    }
-
-    public void setBodyAsJson(Map<String, Object> bodyAsJson) {
-        this.bodyAsJson = bodyAsJson;
-    }
-
-    public void setQueryParams(Map<String, String> queryParams) {
-        this.queryParams = queryParams;
-    }
-
-    public void setPathParams(Map<String, String> pathParams) {
-        this.pathParams = pathParams;
-    }
-
-    public String getQueryString () {
+    /**
+     * Get query string
+     *
+     * @return Query string
+     */
+    public String getQueryString() {
         StringBuilder queryString = new StringBuilder();
         queryParams.forEach((key, value) -> queryString.append(key).append("=").append(value).append("&"));
         return queryString.toString();
     }
 
+    /**
+     * Get path parameter as integer
+     *
+     * @param key
+     * @param defaultValue
+     * @return Integer value of the path parameter or the default value if not found or invalid
+     */
+    public Integer getPathParamAsInt(String key, Integer defaultValue) {
+        String value = pathParams.get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
+    }
+
+    /**
+     * @param key
+     * @param defaultValue
+     * @return Long value of the path parameter or the default value if not found or invalid
+     */
+    public Long getPathParamAsLong(String key, Long defaultValue) {
+        String value = pathParams.get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
+    }
+
+    /**
+     * Get query parameter
+     *
+     * @param key
+     * @return Value of the query parameter or null if not found
+     */
+    public String getQueryParam(String key) {
+        return queryParams.get(key);
+    }
+
+    /**
+     * Get query parameter as integer
+     *
+     * @param key
+     * @param defaultValue
+     * @return Integer value of the query parameter or the default value if not found or invalid
+     */
+    public Integer getQueryParamAsInt(String key, Integer defaultValue) {
+        String value = queryParams.get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
+    }
+
+    /**
+     * Get query parameter as long
+     *
+     * @param key
+     * @param defaultValue
+     * @return Long value of the query parameter or the default value if not found or invalid
+     */
+    public Long getQueryParamAsLong(String key, Long defaultValue) {
+        String value = queryParams.get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
+    }
 }
+

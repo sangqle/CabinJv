@@ -14,10 +14,6 @@ public class ApiRouter {
             res.send();
         });
 
-        router.get("/users/:userId", (req, res) -> {
-            res.writeBody("this is private data... of api router");
-            res.send();
-        });
         return router;
     }
 }

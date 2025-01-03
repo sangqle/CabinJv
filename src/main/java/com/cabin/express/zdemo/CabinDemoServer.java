@@ -13,10 +13,6 @@ public class CabinDemoServer  {
         try {
             CabinServer server = new ServerBuilder().build();
 
-
-
-            server.use(AuthMiddleware.Instance::checkAuth);
-
             server.use(AppRouter.Instance.registerRoutes());
             server.use(ApiRouter.Instance.registerRoutes());
 
