@@ -25,6 +25,7 @@ public class CabinServer {
     private final List<Router> routers = new ArrayList<>();
 
     private Map<String, Boolean> endpointMap = new HashMap<>();
+    private final List<Middleware> globalMiddlewares = new ArrayList<>();
 
 
     private final int port;
@@ -37,6 +38,11 @@ public class CabinServer {
         this.workerPool = new CabinWorkerPool(maxPoolSize > 4 ? maxPoolSize / 4 : 1, maxPoolSize); // Initialize with configured size
     }
 
+    /**
+     * Start the server
+     *
+     * @throws IOException if an I/O error occurs
+     */
     public void start() throws IOException {
         initializeServer();
 
@@ -93,6 +99,11 @@ public class CabinServer {
         }
     }
 
+    /**
+     * Initialize the server by opening a selector and server socket channel.
+     *
+     * @throws IOException if an I/O error occurs
+     */
     private void initializeServer() throws IOException {
         // Open a selector
         selector = Selector.open();
@@ -106,6 +117,12 @@ public class CabinServer {
         serverChannel.register(selector, SelectionKey.OP_ACCEPT);
     }
 
+    /**
+     * Handles accepting a new incoming connection.
+     *
+     * @param serverChannel the server socket channel that is accepting the connection
+     * @throws IOException if an I/O error occurs
+     */
     private void handleAccept(ServerSocketChannel serverChannel) throws IOException {
         // Accept the incoming connection
         SocketChannel clientChannel = serverChannel.accept();
@@ -116,6 +133,13 @@ public class CabinServer {
         CabinLogger.info("Accepted new connection from " + clientChannel.getRemoteAddress());
     }
 
+
+    /**
+     * Handles reading data from a client connection.
+     *
+     * @param key the selection key representing the client connection
+     * @throws IOException if an I/O error occurs
+     */
     private void handleRead(SelectionKey key) throws IOException {
         SocketChannel clientChannel = (SocketChannel) key.channel();
         try {
@@ -187,6 +211,12 @@ public class CabinServer {
         }
     }
 
+    /**
+     * Add a router to the server
+     *
+     * @param router
+     * @throws IllegalArgumentException
+     */
     public void use(Router router) {
         // Validate the router
         if (router == null) {
@@ -206,10 +236,21 @@ public class CabinServer {
                 }
             }
         }
+        for (Middleware middleware : globalMiddlewares) {
+            router.use(middleware);
+        }
         routers.add(router);
     }
 
+    /**
+     * Add a global middleware to all routers
+     *
+     * @param middleware
+     * @return
+     * @throws IllegalArgumentException
+     */
     public void use(Middleware middleware) {
+        globalMiddlewares.add(middleware);
         for (Router router : routers) {
             router.use(middleware);
         }

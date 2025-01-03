@@ -14,6 +14,7 @@ public class AuthMiddleware {
 
     // Middleware to check if the user is authenticated
     public void checkAuth(Request req, Response res, MiddlewareChain next) throws IOException {
+        System.err.println("Checking auth..., time: " + System.currentTimeMillis());
         String token = req.getHeader("Authorization");
         if (token == null || !token.equals("Bearer token")) {
             res.setStatusCode(401);
