@@ -24,28 +24,28 @@ public class Router {
     }
 
     public void get(String path, Handler handler) {
-        if (prefix != "") {
+        if (!Objects.equals(prefix, "")) {
             path = prefix + path;
         }
         addRoute("GET", path, handler);
     }
 
     public void post(String path, Handler handler) {
-        if (prefix != "") {
+        if (!Objects.equals(prefix, "")) {
             path = prefix + path;
         }
         addRoute("POST", path, handler);
     }
 
     public void put(String path, Handler handler) {
-        if (prefix != "") {
+        if (!Objects.equals(prefix, "")) {
             path = prefix + path;
         }
         addRoute("PUT", path, handler);
     }
 
     public void delete(String path, Handler handler) {
-        if (prefix != "") {
+        if (!Objects.equals(prefix, "")) {
             path = prefix + path;
         }
         addRoute("DELETE", path, handler);
