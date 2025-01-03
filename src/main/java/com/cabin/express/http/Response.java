@@ -1,5 +1,7 @@
 package com.cabin.express.http;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
@@ -12,6 +14,7 @@ public class Response {
     private Map<String, String> headers = new HashMap<>();
     private StringBuilder body = new StringBuilder();
     private final SocketChannel clientChannel;
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     public Response(SocketChannel clientChannel) {
         this.clientChannel = clientChannel;
@@ -29,7 +32,12 @@ public class Response {
         body.append(content);
     }
 
-    public void send () throws IOException {
+    public void writeJsonBody(Object content) throws IOException {
+        setHeader("Content-Type", "application/json");
+        body.append(objectMapper.writeValueAsString(content));
+    }
+
+    public void send() throws IOException {
         // Write headers and status line
         StringBuilder headersBuilder = new StringBuilder();
 

@@ -106,8 +106,32 @@ public class Request {
         }
     }
 
+    /**
+     * Get the request body as a string
+     *
+     * @return The request body as a string
+     */
     public Map<String, Object> getBody() {
         return bodyAsJson;
+    }
+
+    /**
+     * Parses the request body as an object of the specified class.
+     *
+     * @param <T>   The type of the object to parse the body as.
+     * @param clazz The class of the object to parse the body as.
+     * @return The parsed object, or null if the body is null or not JSON.
+     * @throws IllegalArgumentException if the body cannot be parsed as the specified class.
+     */
+    public <T> T getBodyAs(Class<T> clazz) {
+        if (body != null && headers.containsKey("Content-Type") && headers.get("Content-Type").toLowerCase().contains("application/json")) {
+            try {
+                return objectMapper.readValue(body, clazz);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Failed to parse JSON body: " + e.getMessage(), e);
+            }
+        }
+        return null;
     }
 
     /**
