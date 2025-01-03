@@ -12,12 +12,18 @@ public class AppHandler {
     }
 
     public void hello(Request req, Response resp) throws IOException {
-        resp.writeBody("Hello, World!");
+        String appId = req.getPathParam("appId");
+        String userId = req.getPathParam("userId");
+        System.err.println("User ID: " + userId);
+        System.err.println("App ID: " + appId);
+        resp.writeBody("Hello, User ID: " + userId + ", App ID: " + appId);
         resp.send();
     }
 
     public void getUserInfo(Request req, Response resp) throws IOException {
-        resp.writeBody("User Info: {\"name\": \"John Doe\", \"age\": 30}");
+        String userId = req.getPathParam("userId");
+        System.err.println("User ID: " + userId);
+        resp.writeBody("User ID: " + userId);
         resp.send();
     }
 }

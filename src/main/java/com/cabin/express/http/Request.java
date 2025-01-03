@@ -16,6 +16,7 @@ public class Request {
     private String body;
     private Map<String, Object> bodyAsJson = new HashMap<>();
     private Map<String, String> queryParams = new HashMap<>();
+    private Map<String, String> pathParams = new HashMap<>();
     private Map<String, String> headers = new HashMap<>();
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
@@ -103,4 +104,59 @@ public class Request {
     public String getHeader(String key) {
         return headers.get(key);
     }
+
+    public String getPathParam(String key) {
+        return pathParams.get(key);
+    }
+
+    public void setPathParam(String key, String value) {
+        pathParams.put(key, value);
+    }
+
+    public void setHeader(String key, String value) {
+        headers.put(key, value);
+    }
+
+    public void setBody(String body) {
+        this.body = body;
+    }
+
+    public void setBody(Map<String, Object> body) {
+        try {
+            this.body = objectMapper.writeValueAsString(body);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Failed to serialize body to JSON: " + e.getMessage(), e);
+        }
+    }
+
+    public void setQueryParam(String key, String value) {
+        queryParams.put(key, value);
+    }
+
+    public void setMethod(String method) {
+        this.method = method;
+    }
+
+    public void setPath(String path) {
+        this.path = path;
+    }
+
+    public void setBodyAsJson(Map<String, Object> bodyAsJson) {
+        this.bodyAsJson = bodyAsJson;
+    }
+
+    public void setQueryParams(Map<String, String> queryParams) {
+        this.queryParams = queryParams;
+    }
+
+    public void setPathParams(Map<String, String> pathParams) {
+        this.pathParams = pathParams;
+    }
+
+    public String getQueryString () {
+        StringBuilder queryString = new StringBuilder();
+        queryParams.forEach((key, value) -> queryString.append(key).append("=").append(value).append("&"));
+        return queryString.toString();
+    }
+
 }

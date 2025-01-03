@@ -7,15 +7,12 @@ import com.cabin.express.zdemo.handler.AppHandler;
 public class AppRouter {
 
     public static final AppRouter Instance = new AppRouter();
-    public static final String API_PREFIX = "/api/v1";
 
     public Router registerRoutes() {
         Router router = new Router();
 
-        router.setPrefix(API_PREFIX);
-
-        router.get("/hello", AppHandler.Instance::hello);
-        router.get("/users", AppHandler.Instance::getUserInfo);
+        router.get("/:appId/users/", AppHandler.Instance::hello);
+        router.get("/users/:userId", AppHandler.Instance::getUserInfo);
 
 
         System.err.println("Endpoints registered: " + router.getEndpoint());

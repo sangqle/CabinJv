@@ -9,18 +9,22 @@ import com.cabin.express.middleware.MiddlewareChain;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Router {
 
     private static final String name = "Router";
     private String prefix = "";
-    private final Map<String, Map<String, Handler>> methodRoutes = new HashMap<>();
+    private final Map<String, Map<Pattern, Handler>> methodRoutes = new HashMap<>();
     private final List<Middleware> middlewares = new ArrayList<>();
 
     private void addRoute(String method, String path, Handler handler) {
         method = method.toUpperCase();
         methodRoutes.putIfAbsent(method, new HashMap<>());
-        methodRoutes.get(method).put(path, handler);
+        String regexPath = path.replaceAll(":(\\w+)", "(?<$1>[^/]+)");
+        Pattern pattern = Pattern.compile("^" + regexPath + "$");
+        methodRoutes.get(method).put(pattern, handler);
     }
 
     public void get(String path, Handler handler) {
@@ -59,41 +63,46 @@ public class Router {
      * @return true if the request was handled, false otherwise
      */
     public boolean handleRequest(Request request, Response response) {
-        // Wrap route handling in a middleware chain
         AtomicBoolean handled = new AtomicBoolean(false);
 
         String method = request.getMethod();
         String path = request.getPath();
-        Handler handler = methodRoutes.getOrDefault(method, new HashMap<>()).get(path);
+        Map<Pattern, Handler> routes = methodRoutes.getOrDefault(method, new HashMap<>());
 
-        if (handler == null) {
-            return false;
+        for (Map.Entry<Pattern, Handler> entry : routes.entrySet()) {
+            Matcher matcher = entry.getKey().matcher(path);
+            if (matcher.matches()) {
+                request.setPathParams(extractPathParams(matcher));
+                request.setQueryParams(parseQueryParams(request.getQueryString()));
+
+                MiddlewareChain chain = new MiddlewareChain(middlewares, (req, res) -> {
+                    try {
+                        entry.getValue().handle(req, res);
+                        handled.set(true);
+                    } catch (Exception e) {
+                        CabinLogger.error("Error in route handler: " + e.getMessage(), e);
+                        res.setStatusCode(500);
+                        res.writeBody("Internal Server Error");
+                    }
+                });
+
+                try {
+                    chain.next(request, response);
+                } catch (Exception e) {
+                    CabinLogger.error("Error processing request: " + e.getMessage(), e);
+                    try {
+                        response.setStatusCode(500);
+                        response.writeBody("Internal Server Error");
+                    } catch (Exception ex) {
+                        CabinLogger.error("Error sending error response: " + ex.getMessage(), ex);
+                    }
+                }
+
+                return handled.get();
+            }
         }
 
-        MiddlewareChain chain = new MiddlewareChain(middlewares, (req, res) -> {
-            try {
-                handler.handle(req, res);
-                handled.set(true);
-            } catch (Exception e) {
-                CabinLogger.error("Error in route handler: " + e.getMessage(), e);
-                res.setStatusCode(500);
-                res.writeBody("Internal Server Error");
-            }
-        });
-
-        try {
-            chain.next(request, response); // Start the middleware chain
-        } catch (Exception e) {
-            CabinLogger.error("Error processing request: " + e.getMessage(), e);
-            try {
-                response.setStatusCode(500);
-                response.writeBody("Internal Server Error");
-            } catch (Exception ex) {
-                CabinLogger.error("Error sending error response: " + ex.getMessage(), ex);
-            }
-        }
-
-        return handled.get();
+        return false;
     }
 
     public void use(Middleware middleware) {
@@ -111,17 +120,16 @@ public class Router {
         if (prefix == null || prefix.isEmpty()) {
             return;
         }
-        // Normalize the prefix
         prefix = "/" + prefix.replaceAll("^/+", "").replaceAll("/+$", "");
 
-        Map<String, Map<String, Handler>> newMethodRoutes = new HashMap<>();
-        for (Map.Entry<String, Map<String, Handler>> entry : methodRoutes.entrySet()) {
-            Map<String, Handler> newRoutes = new HashMap<>();
-            for (Map.Entry<String, Handler> route : entry.getValue().entrySet()) {
-                String path = route.getKey();
+        Map<String, Map<Pattern, Handler>> newMethodRoutes = new HashMap<>();
+        for (Map.Entry<String, Map<Pattern, Handler>> entry : methodRoutes.entrySet()) {
+            Map<Pattern, Handler> newRoutes = new HashMap<>();
+            for (Map.Entry<Pattern, Handler> route : entry.getValue().entrySet()) {
+                String path = route.getKey().pattern();
                 path = path.replaceFirst("^" + this.prefix, "");
                 path = prefix + path;
-                newRoutes.put(path, route.getValue());
+                newRoutes.put(Pattern.compile(path), route.getValue());
             }
             newMethodRoutes.put(entry.getKey(), newRoutes);
         }
@@ -132,11 +140,38 @@ public class Router {
 
     public Set<String> getEndpoint() {
         Set<String> endpoints = new HashSet<>();
-        for (Map.Entry<String, Map<String, Handler>> entry : methodRoutes.entrySet()) {
-            for (String path : entry.getValue().keySet()) {
-                endpoints.add(entry.getKey() + "-" + path);
+        for (Map.Entry<String, Map<Pattern, Handler>> entry : methodRoutes.entrySet()) {
+            for (Pattern pattern : entry.getValue().keySet()) {
+                endpoints.add(entry.getKey() + "-" + pattern.pattern());
             }
         }
         return endpoints;
+    }
+
+    private Map<String, String> parseQueryParams(String queryString) {
+        Map<String, String> queryParams = new HashMap<>();
+        if (queryString != null && !queryString.isEmpty()) {
+            String[] pairs = queryString.split("&");
+            for (String pair : pairs) {
+                String[] keyValue = pair.split("=");
+                if (keyValue.length > 1) {
+                    queryParams.put(keyValue[0], keyValue[1]);
+                } else {
+                    queryParams.put(keyValue[0], "");
+                }
+            }
+        }
+        return queryParams;
+    }
+
+    private Map<String, String> extractPathParams(Matcher matcher) {
+        Map<String, String> pathParams = new HashMap<>();
+        Pattern pattern = matcher.pattern();
+        String[] groupNames = pattern.pattern().split("\\(\\?<");
+        for (int i = 1; i < groupNames.length; i++) {
+            String groupName = groupNames[i].split(">")[0];
+            pathParams.put(groupName, matcher.group(groupName));
+        }
+        return pathParams;
     }
 }
