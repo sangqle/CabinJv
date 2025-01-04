@@ -29,6 +29,9 @@ public class AppHandler {
 
         UserInfo bodyAs = req.getBodyAs(UserInfo.class);
 
+
+        resp.clearCookie("userId", "localhost", "/");
+
         System.err.println("Request body: " + bodyAs);
         resp.writeJsonBody(bodyAs);
 
