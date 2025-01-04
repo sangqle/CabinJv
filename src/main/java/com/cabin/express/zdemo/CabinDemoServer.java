@@ -1,8 +1,12 @@
 package com.cabin.express.zdemo;
 
 import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.middleware.CORS;
 import com.cabin.express.server.CabinServer;
 import com.cabin.express.server.ServerBuilder;
+
+import java.util.Arrays;
+import java.util.List;
 
 public class CabinDemoServer  {
     public static void main(String[] args) {
@@ -13,6 +17,14 @@ public class CabinDemoServer  {
         try {
             CabinServer server = new ServerBuilder().build();
 
+            List<String> allowedOrigins = Arrays.asList("https://viblo.asia");
+            List<String> allowedMethods = Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS");
+            List<String> allowedHeaders = Arrays.asList("Content-Type", "Authorization");
+
+            CORS corsMiddleware = new CORS(allowedOrigins, allowedMethods, allowedHeaders, true);
+
+
+            server.use(corsMiddleware);
             server.use(AppRouter.Instance.registerRoutes());
             server.use(ApiRouter.Instance.registerRoutes());
 
