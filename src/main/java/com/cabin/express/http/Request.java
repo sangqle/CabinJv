@@ -38,6 +38,18 @@ public class Request {
         return headers.get(key);
     }
 
+    public Map<String, String> getHeaders() {
+        return headers;
+    }
+
+    public Map<String, String> getQueryParams() {
+        return queryParams;
+    }
+
+    public Map<String, String> getPathParams() {
+        return pathParams;
+    }
+
     public String getPathParam(String key) {
         return pathParams.get(key);
     }
@@ -228,5 +240,6 @@ public class Request {
             return defaultValue;
         }
     }
+
 }
 
