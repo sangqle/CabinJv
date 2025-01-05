@@ -7,7 +7,18 @@ public class CabinWorkerPool {
 
 
     public CabinWorkerPool(int poolSize, int maxPoolSize) {
-        threadPoolExecutor = new ThreadPoolExecutor(poolSize, maxPoolSize, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
+        int corePoolSize = Math.max(1, poolSize); // Ensure at least one thread
+        int maximumPoolSize = Math.max(corePoolSize, maxPoolSize); // Ensure max pool size is not less than core pool size
+        int queueCapacity = 1000; // Example capacity, adjust as needed
+
+        threadPoolExecutor = new ThreadPoolExecutor(
+                corePoolSize,
+                maximumPoolSize,
+                60L,
+                TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(queueCapacity),
+                new ThreadPoolExecutor.CallerRunsPolicy() // Example policy, adjust as needed
+        );
 
     }
 

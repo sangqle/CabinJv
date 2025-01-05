@@ -143,7 +143,7 @@ public class CabinServer {
 
         // Register the new channel for reading
         clientChannel.register(selector, SelectionKey.OP_READ);
-        CabinLogger.info("Accepted new connection from " + clientChannel.getRemoteAddress());
+//        CabinLogger.info("Accepted new connection from " + clientChannel.getRemoteAddress());
     }
 
 
@@ -167,7 +167,7 @@ public class CabinServer {
 
             if (bytesRead == -1) {
                 // Client closed the connection
-                CabinLogger.info("Client closed connection: " + clientChannel.getRemoteAddress());
+//                CabinLogger.info("Client closed connection: " + clientChannel.getRemoteAddress());
                 closeChannelAndCancelKey(clientChannel, key);
                 return;
             }
@@ -292,12 +292,13 @@ public class CabinServer {
 
         // 3. Thread metrics
         int threadCount = ManagementFactory.getThreadMXBean().getThreadCount();
+        int daemonThreadCount = ManagementFactory.getThreadMXBean().getDaemonThreadCount();
+        int peakThreadCount = ManagementFactory.getThreadMXBean().getPeakThreadCount();
 
         // Log the information
         CabinLogger.info("=== Resource Usage ===");
-        CabinLogger.info(String.format("CPU Load: Process = %.2f%%, System = %.2f%%", processCpuLoad, systemCpuLoad));
-        CabinLogger.info(String.format("Memory Usage (System): Total = %d MB, Used = %d MB, Free = %d MB", totalPhysicalMemorySize / (1024 * 1024), usedPhysicalMemorySize / (1024 * 1024), freePhysicalMemorySize / (1024 * 1024)));
-
-        CabinLogger.info(String.format("Memory Usage (JVM): Heap = %d MB / %d MB, Non-Heap = %d MB, Threads = %d", heapUsed / (1024 * 1024), heapMax / (1024 * 1024), nonHeapUsed / (1024 * 1024), threadCount));
+        // Log full system metrics
+        CabinLogger.info(String.format("Process CPU Load: %.2f%%\nSystem CPU Load: %.2f%%\nTotal Physical Memory: %,d bytes\nUsed Physical Memory: %,d bytes\nFree Physical Memory: %,d bytes\nHeap Memory Used: %,d bytes\nHeap Memory Max: %,d bytes\nNon-Heap Memory Used: %,d bytes",
+                processCpuLoad, systemCpuLoad, totalPhysicalMemorySize, usedPhysicalMemorySize, freePhysicalMemorySize, heapUsed, heapMax, nonHeapUsed));
     }
 }
