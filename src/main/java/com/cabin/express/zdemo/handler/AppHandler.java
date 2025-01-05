@@ -17,8 +17,6 @@ public class AppHandler {
     public void hello(Request req, Response resp) throws IOException {
         String appId = req.getPathParam("appId");
         String userId = req.getPathParam("userId");
-        System.err.println("User ID: " + userId);
-        System.err.println("App ID: " + appId);
         resp.writeBody("Hello, User ID: " + userId + ", App ID: " + appId);
         resp.send();
     }

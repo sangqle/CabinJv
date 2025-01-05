@@ -1,5 +1,9 @@
 package com.cabin.express.server;
 
+import com.sun.management.OperatingSystemMXBean;
+
+import java.lang.management.ManagementFactory;
+
 /**
  * A builder class for creating a CabinServer instance
  * Author: Sang Le
@@ -39,12 +43,24 @@ public class ServerBuilder {
      * @return the server builder
      */
     public ServerBuilder setMaxPoolSize(int maxPoolSize) {
+        OperatingSystemMXBean osBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
+        int availableProcessors = osBean.getAvailableProcessors();
+        long totalPhysicalMemorySize = osBean.getTotalPhysicalMemorySize();
+
+        // Example logic to set max pool size based on CPU and memory
+        int poolSizeBasedOnCpu = availableProcessors * 2; // 2 threads per CPU core
+        int poolSizeBasedOnMemory = (int) (totalPhysicalMemorySize / (1024 * 1024 * 512)); // 1 thread per 512MB of RAM
+
+        // Set the max pool size to the minimum of the two values
+        int maxSystemPoolSize = Math.min(poolSizeBasedOnCpu, poolSizeBasedOnMemory);
+
         if (maxPoolSize < 1) {
             return this;
         }
-        if (maxPoolSize > 100) {
-            maxPoolSize = 100;
+        if (maxPoolSize > maxSystemPoolSize) {
+            maxPoolSize = maxSystemPoolSize;
         }
+
         this.maxPoolSize = maxPoolSize;
         return this;
     }

@@ -8,11 +8,20 @@ import com.cabin.express.router.Router;
 import com.cabin.express.worker.CabinWorkerPool;
 
 import java.io.*;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
+import java.lang.management.MemoryUsage;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.net.InetSocketAddress;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import com.sun.management.OperatingSystemMXBean;
+
 
 /**
  * A simple HTTP server using Java NIO.
@@ -26,7 +35,7 @@ public class CabinServer {
 
     private Map<String, Boolean> endpointMap = new HashMap<>();
     private final List<Middleware> globalMiddlewares = new ArrayList<>();
-
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     private final int port;
     private final int maxPoolSize;
@@ -45,6 +54,10 @@ public class CabinServer {
      */
     public void start() throws IOException {
         initializeServer();
+
+        // Schedule resource usage logging every 10 seconds
+        scheduler.scheduleAtFixedRate(this::logResourceUsage, 0, 10, TimeUnit.SECONDS);
+
 
         CabinLogger.info("Server started on port " + port);
 
@@ -254,5 +267,37 @@ public class CabinServer {
         for (Router router : routers) {
             router.use(middleware);
         }
+    }
+
+    private void logResourceUsage() {
+        // Get the OperatingSystemMXBean for system-level metrics
+        OperatingSystemMXBean osBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
+
+        // Get the MemoryMXBean for JVM-level metrics
+        MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
+        MemoryUsage heapMemoryUsage = memoryMXBean.getHeapMemoryUsage();
+        MemoryUsage nonHeapMemoryUsage = memoryMXBean.getNonHeapMemoryUsage();
+
+        // 1. System-level metrics
+        double processCpuLoad = osBean.getProcessCpuLoad() * 100; // CPU usage of your application
+        double systemCpuLoad = osBean.getSystemCpuLoad() * 100;  // CPU usage of the entire system
+        long totalPhysicalMemorySize = osBean.getTotalPhysicalMemorySize();
+        long freePhysicalMemorySize = osBean.getFreePhysicalMemorySize();
+        long usedPhysicalMemorySize = totalPhysicalMemorySize - freePhysicalMemorySize;
+
+        // 2. JVM-level metrics
+        long heapUsed = heapMemoryUsage.getUsed();
+        long heapMax = heapMemoryUsage.getMax();
+        long nonHeapUsed = nonHeapMemoryUsage.getUsed();
+
+        // 3. Thread metrics
+        int threadCount = ManagementFactory.getThreadMXBean().getThreadCount();
+
+        // Log the information
+        CabinLogger.info("=== Resource Usage ===");
+        CabinLogger.info(String.format("CPU Load: Process = %.2f%%, System = %.2f%%", processCpuLoad, systemCpuLoad));
+        CabinLogger.info(String.format("Memory Usage (System): Total = %d MB, Used = %d MB, Free = %d MB", totalPhysicalMemorySize / (1024 * 1024), usedPhysicalMemorySize / (1024 * 1024), freePhysicalMemorySize / (1024 * 1024)));
+
+        CabinLogger.info(String.format("Memory Usage (JVM): Heap = %d MB / %d MB, Non-Heap = %d MB, Threads = %d", heapUsed / (1024 * 1024), heapMax / (1024 * 1024), nonHeapUsed / (1024 * 1024), threadCount));
     }
 }
