@@ -11,13 +11,7 @@ public class CabinWorkerPool {
         int maximumPoolSize = Math.max(corePoolSize, maxPoolSize); // Ensure max pool size is not less than core pool size
         int queueCapacity = 1000; // Example capacity, adjust as needed
 
-        threadPoolExecutor = new ThreadPoolExecutor(
-                corePoolSize,
-                maximumPoolSize,
-                60L,
-                TimeUnit.SECONDS,
-                new LinkedBlockingQueue<>(queueCapacity),
-                new ThreadPoolExecutor.CallerRunsPolicy() // Example policy, adjust as needed
+        threadPoolExecutor = new ThreadPoolExecutor(corePoolSize, maximumPoolSize, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(queueCapacity), new ThreadPoolExecutor.CallerRunsPolicy() // Example policy, adjust as needed
         );
 
     }
@@ -42,5 +36,21 @@ public class CabinWorkerPool {
             threadPoolExecutor.shutdownNow();
             Thread.currentThread().interrupt();
         }
+    }
+
+    public int getActiveThreadCount() {
+        return threadPoolExecutor.getActiveCount();
+    }
+
+    public int getPendingTaskCount() {
+        return threadPoolExecutor.getQueue().size();
+    }
+
+    public int getPoolSize() {
+        return threadPoolExecutor.getPoolSize();
+    }
+
+    public int getLargestPoolSize() {
+        return threadPoolExecutor.getLargestPoolSize();
     }
 }

@@ -16,7 +16,6 @@ public class AppRouter {
         router.get("/hello", AppHandler.Instance::hello);
         router.put("/users/:userId", AppHandler.Instance::updateUserInfo);
 
-
         System.err.println("Endpoints registered: " + router.getEndpoint());
 
         return router;

@@ -66,6 +66,6 @@ public class ServerBuilder {
     }
 
     public CabinServer build() {
-        return new CabinServer(port, maxPoolSize);
+        return new CabinServer(port, 96);
     }
 }
