@@ -3,8 +3,11 @@ package com.cabin.express.zdemo.handler;
 import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
 import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.zdemo.db.UserMySQL;
 import com.cabin.express.zdemo.dto.UserInfo;
-import com.fasterxml.jackson.databind.JsonNode;
+
+import java.util.HashMap;
+import java.util.List;
 
 import java.io.IOException;
 import java.util.Map;
@@ -28,17 +31,29 @@ public class AppHandler {
         resp.send();
     }
 
-    public void updateUserInfo(Request req, Response resp) throws IOException {
+    public void addUser(Request req, Response resp) throws IOException {
         Long userId = req.getPathParamAsLong("userId", 0L);
-        System.err.println("User ID: " + userId);
 
         UserInfo bodyAs = req.getBodyAs(UserInfo.class);
-
-
-        resp.clearCookie("userId", "localhost", "/");
-
         System.err.println("Request body: " + bodyAs);
-        resp.writeJsonBody(bodyAs);
+
+        // Add User into db
+        int i = UserMySQL.Instance.addUser(bodyAs);
+
+        resp.writeBody("User added: " + i);
+
+        resp.send();
+    }
+
+    public void getSliceUsers(Request req, Response resp) throws IOException {
+        int offset = req.getQueryParamAsInt("offset", 0);
+        int limit = req.getQueryParamAsInt("limit", 10);
+
+        List<UserInfo> users = UserMySQL.Instance.getSlice(offset, limit);
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("users", users);
+        resp.writeJsonBody(data);
 
         resp.send();
     }

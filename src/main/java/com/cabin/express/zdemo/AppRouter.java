@@ -14,7 +14,8 @@ public class AppRouter {
         router.setPrefix(API_PREFIX);
 
         router.get("/hello", AppHandler.Instance::hello);
-        router.put("/users/:userId", AppHandler.Instance::updateUserInfo);
+        router.post("/users", AppHandler.Instance::addUser);
+        router.get("/users", AppHandler.Instance::getSliceUsers);
 
         System.err.println("Endpoints registered: " + router.getEndpoint());
 
