@@ -12,6 +12,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * <p>
+ * The Router class is used to define routes and handle requests. It is used to define routes for different HTTP
+ * methods and handle requests based on the method and path of the request. The Router class also supports
+ * middleware, which can be used to perform operations before or after handling a request.
+ * <p>
+ * Author: Sang Le
+ * Created: 2024-12-24
+ */
 public class Router {
 
     private static final String name = "Router";
@@ -27,6 +36,12 @@ public class Router {
         methodRoutes.get(method).put(pattern, handler);
     }
 
+    /**
+     * Define a route for the GET method
+     *
+     * @param path    the path of the route
+     * @param handler the handler for the route
+     */
     public void get(String path, Handler handler) {
         if (!Objects.equals(prefix, "")) {
             path = prefix + path;
@@ -34,6 +49,12 @@ public class Router {
         addRoute("GET", path, handler);
     }
 
+    /**
+     * Define a route for the POST method
+     *
+     * @param path    the path of the route
+     * @param handler the handler for the route
+     */
     public void post(String path, Handler handler) {
         if (!Objects.equals(prefix, "")) {
             path = prefix + path;
@@ -41,6 +62,12 @@ public class Router {
         addRoute("POST", path, handler);
     }
 
+    /**
+     * Define a route for the PUT method
+     *
+     * @param path    the path of the route
+     * @param handler the handler for the route
+     */
     public void put(String path, Handler handler) {
         if (!Objects.equals(prefix, "")) {
             path = prefix + path;
@@ -48,6 +75,12 @@ public class Router {
         addRoute("PUT", path, handler);
     }
 
+    /**
+     * Define a route for the DELETE method
+     *
+     * @param path    the path of the route
+     * @param handler the handler for the route
+     */
     public void delete(String path, Handler handler) {
         if (!Objects.equals(prefix, "")) {
             path = prefix + path;
@@ -105,6 +138,11 @@ public class Router {
         return false;
     }
 
+    /**
+     * Add a middleware to this router
+     *
+     * @param middleware the middleware to add
+     */
     public void use(Middleware middleware) {
         middlewares.add(middleware);
     }
@@ -138,6 +176,11 @@ public class Router {
         this.prefix = prefix;
     }
 
+    /**
+     * Get the prefix for all routes in this router
+     *
+     * @return the prefix for all routes in this router
+     */
     public Set<String> getEndpoint() {
         Set<String> endpoints = new HashSet<>();
         for (Map.Entry<String, Map<Pattern, Handler>> entry : methodRoutes.entrySet()) {
