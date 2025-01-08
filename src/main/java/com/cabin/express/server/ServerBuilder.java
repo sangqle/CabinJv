@@ -74,6 +74,11 @@ public class ServerBuilder {
         return this;
     }
 
+    /**
+     * Build the CabinServer instance
+     *
+     * @return the CabinServer instance
+     */
     public CabinServer build() {
         return new CabinServer(port, defaultPoolSize, maxPoolSize, maxQueueCapacity);
     }

@@ -43,6 +43,14 @@ public class CabinServer {
     private final int maxQueueCapacity;
     private final CabinWorkerPool workerPool;
 
+    /**
+     * Creates a new server with the specified port number, default pool size, maximum pool size, and maximum queue capacity.
+     *
+     * @param port             the port number
+     * @param defaultPoolSize  the default number of threads in the thread pool
+     * @param maxPoolSize      the maximum number of threads in the thread pool
+     * @param maxQueueCapacity the maximum queue capacity
+     */
     protected CabinServer(int port, int defaultPoolSize, int maxPoolSize, int maxQueueCapacity) {
         this.port = port;
         this.defaultPoolSize = defaultPoolSize;
@@ -170,7 +178,7 @@ public class CabinServer {
 
             if (bytesRead == -1) {
                 // Client closed the connection
-//                CabinLogger.info("Client closed connection: " + clientChannel.getRemoteAddress());
+                CabinLogger.info("Client closed connection: " + clientChannel.getRemoteAddress());
                 closeChannelAndCancelKey(clientChannel, key);
                 return;
             }
@@ -284,6 +292,9 @@ public class CabinServer {
         }
     }
 
+    /**
+     * Log resource usage
+     */
     private void logResourceUsage() {
         // Get the OperatingSystemMXBean for system-level metrics
         OperatingSystemMXBean osBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
