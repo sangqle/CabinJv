@@ -2,20 +2,35 @@ package com.cabin.express.worker;
 
 import java.util.concurrent.*;
 
+/**
+ * A worker pool for executing tasks in a multi-threaded environment.
+ * Author Sang Le
+ * Created: 2024-12-24
+ */
 public class CabinWorkerPool {
     private final ThreadPoolExecutor threadPoolExecutor;
 
-
-    public CabinWorkerPool(int poolSize, int maxPoolSize) {
-        int corePoolSize = Math.max(1, poolSize); // Ensure at least one thread
-        int maximumPoolSize = Math.max(corePoolSize, maxPoolSize); // Ensure max pool size is not less than core pool size
-        int queueCapacity = 1000; // Example capacity, adjust as needed
-
-        threadPoolExecutor = new ThreadPoolExecutor(corePoolSize, maximumPoolSize, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(queueCapacity), new ThreadPoolExecutor.CallerRunsPolicy() // Example policy, adjust as needed
-        );
-
+    /*
+     * Creates a new worker pool with the specified pool size, maximum pool size, and queue capacity.
+     * @param poolSize the number of threads to keep in the pool, even if they are idle
+     * @param maxPoolSize the maximum number of threads to allow in the pool
+     * @param queueCapacity the queue capacity
+     * @throws IllegalArgumentException if the pool size is less than 1, the maximum pool size is less than the pool size, or the queue capacity is negative
+     *
+     */
+    public CabinWorkerPool(int poolSize, int maxPoolSize, int queueCapacity) {
+        int corePoolSize = Math.max(1, poolSize);
+        int maximumPoolSize = Math.max(corePoolSize, maxPoolSize);
+        int maximumQueueCapacity = Math.max(0, queueCapacity);
+        threadPoolExecutor = new ThreadPoolExecutor(corePoolSize, maximumPoolSize, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(maximumQueueCapacity), new ThreadPoolExecutor.CallerRunsPolicy());
     }
 
+    /**
+     * Submits a task for execution.
+     *
+     * @param task the task to execute
+     * @throws IllegalStateException if the pool is stopped
+     */
     public void submitTask(Runnable task) {
         if (threadPoolExecutor.isShutdown()) {
             throw new IllegalStateException("The pool is stopped");
@@ -23,6 +38,9 @@ public class CabinWorkerPool {
         threadPoolExecutor.submit(task);
     }
 
+    /**
+     * Shuts down the worker pool.
+     */
     public void shutdown() {
         threadPoolExecutor.shutdown();
         try {
@@ -38,18 +56,38 @@ public class CabinWorkerPool {
         }
     }
 
+    /**
+     * Returns the number of active threads in the pool.
+     *
+     * @return the number of active threads
+     */
     public int getActiveThreadCount() {
         return threadPoolExecutor.getActiveCount();
     }
 
+    /**
+     * Returns the number of pending tasks in the queue.
+     *
+     * @return the number of pending tasks
+     */
     public int getPendingTaskCount() {
         return threadPoolExecutor.getQueue().size();
     }
 
+    /**
+     * Returns the number of threads in the pool.
+     *
+     * @return the number of threads
+     */
     public int getPoolSize() {
         return threadPoolExecutor.getPoolSize();
     }
 
+    /**
+     * Returns the maximum number of threads in the pool.
+     *
+     * @return the maximum number of threads
+     */
     public int getLargestPoolSize() {
         return threadPoolExecutor.getLargestPoolSize();
     }

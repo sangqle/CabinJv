@@ -1,5 +1,6 @@
 package com.cabin.express.http;
 
+import com.cabin.express.loggger.CabinLogger;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
@@ -112,46 +113,55 @@ public class Response {
     }
 
     /**
-     * Sends the response to the client.
+     * Writes the specified object as JSON to the response body.
      *
-     * @throws IOException if an error occurs while sending the response.
+     * @param content The object to write as JSON.
+     * @param headers The headers to set in the response.
      */
-    public void send() throws IOException {
-        // Write headers and status line
-        StringBuilder headersBuilder = new StringBuilder();
+    public void send() {
+        try {
+            // Write headers and status line
+            StringBuilder headersBuilder = new StringBuilder();
 
-        // Status line
-        String statusMessage = getStatusMessage(statusCode);
-        headersBuilder.append(String.format("HTTP/1.1 %d %s\r\n", statusCode, statusMessage));
+            // Status line
+            String statusMessage = getStatusMessage(statusCode);
+            headersBuilder.append(String.format("HTTP/1.1 %d %s\r\n", statusCode, statusMessage));
 
-        // Headers
-        headers.forEach((key, value) -> headersBuilder.append(String.format("%s: %s\r\n", key, value)));
+            // Headers
+            headers.forEach((key, value) -> headersBuilder.append(String.format("%s: %s\r\n", key, value)));
 
-        // Cookies
-        cookies.forEach((key, value) -> headersBuilder.append(String.format("Set-Cookie: %s=%s\r\n", key, value)));
+            // Cookies
+            cookies.forEach((key, value) -> headersBuilder.append(String.format("Set-Cookie: %s=%s\r\n", key, value)));
 
-        // Content-Length
-        int contentLength = body != null ? body.length() : 0;
-        headersBuilder.append(String.format("Content-Length: %d\r\n", contentLength));
+            // Content-Length
+            int contentLength = body != null ? body.length() : 0;
+            headersBuilder.append(String.format("Content-Length: %d\r\n", contentLength));
 
-        // End of headers
-        headersBuilder.append("\r\n");
+            // End of headers
+            headersBuilder.append("\r\n");
 
-        // Convert headers to bytes
-        ByteBuffer headerBuffer = ByteBuffer.wrap(headersBuilder.toString().getBytes(StandardCharsets.UTF_8));
+            // Convert headers to bytes
+            ByteBuffer headerBuffer = ByteBuffer.wrap(headersBuilder.toString().getBytes(StandardCharsets.UTF_8));
 
-        // Convert body to bytes (if not null)
-        ByteBuffer bodyBuffer = body != null ? ByteBuffer.wrap(body.toString().getBytes(StandardCharsets.UTF_8)) : null;
+            // Convert body to bytes (if not null)
+            ByteBuffer bodyBuffer = body != null ? ByteBuffer.wrap(body.toString().getBytes(StandardCharsets.UTF_8)) : null;
 
-        // Write the headers first
-        while (headerBuffer.hasRemaining()) {
-            clientChannel.write(headerBuffer);
-        }
+            // Write the headers first
+            while (headerBuffer.hasRemaining()) {
+                clientChannel.write(headerBuffer);
+            }
 
-        // Write the body if it exists
-        if (bodyBuffer != null) {
-            while (bodyBuffer.hasRemaining()) {
-                clientChannel.write(bodyBuffer);
+            // Write the body if it exists
+            if (bodyBuffer != null) {
+                while (bodyBuffer.hasRemaining()) {
+                    clientChannel.write(bodyBuffer);
+                }
+            }
+        } catch (Exception e) {
+            if ("Broken pipe".equals(e.getMessage())) {
+                CabinLogger.error("Client closed connection: " + e.getMessage(), e);
+            } else {
+                CabinLogger.error("Error sending response: " + e.getMessage(), e);
             }
         }
     }

@@ -15,7 +15,7 @@ public class CabinDemoServer  {
 
         CabinLogger.info("Starting CabinJ Framework...");
         try {
-            CabinServer server = new ServerBuilder().setMaxPoolSize(96).build();
+            CabinServer server = new ServerBuilder().build();
 
             List<String> allowedOrigins = Arrays.asList("https://viblo.asia");
             List<String> allowedMethods = Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS");

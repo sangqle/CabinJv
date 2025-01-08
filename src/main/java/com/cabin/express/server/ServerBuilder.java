@@ -19,8 +19,10 @@ import java.lang.management.ManagementFactory;
  */
 
 public class ServerBuilder {
-    private int port = 8080; // Default port
-    private int maxPoolSize = 20; // Default thread pool size
+    private int port = 8080;
+    private int defaultPoolSize = 50;
+    private int maxPoolSize = 200;
+    private int maxQueueCapacity = 2000;
 
     /**
      * Set the port number
@@ -37,35 +39,42 @@ public class ServerBuilder {
     }
 
     /**
+     * Set the default number of threads in the thread pool
+     *
+     * @param defaultPoolSize the default number of threads
+     * @return the server builder
+     */
+    public ServerBuilder setDefaultPoolSize(int defaultPoolSize) {
+        if (defaultPoolSize < 1) {
+            return this;
+        }
+        this.defaultPoolSize = defaultPoolSize;
+        return this;
+    }
+
+    /**
      * Set the maximum number of threads in the thread pool
      *
      * @param maxPoolSize the maximum number of threads
      * @return the server builder
      */
     public ServerBuilder setMaxPoolSize(int maxPoolSize) {
-        OperatingSystemMXBean osBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
-        int availableProcessors = osBean.getAvailableProcessors();
-        long totalPhysicalMemorySize = osBean.getTotalPhysicalMemorySize();
-
-        // Example logic to set max pool size based on CPU and memory
-        int poolSizeBasedOnCpu = availableProcessors * 2; // 2 threads per CPU core
-        int poolSizeBasedOnMemory = (int) (totalPhysicalMemorySize / (1024 * 1024 * 512)); // 1 thread per 512MB of RAM
-
-        // Set the max pool size to the minimum of the two values
-        int maxSystemPoolSize = Math.min(poolSizeBasedOnCpu, poolSizeBasedOnMemory);
-
-        if (maxPoolSize < 1) {
-            return this;
-        }
-        if (maxPoolSize > maxSystemPoolSize) {
-            maxPoolSize = maxSystemPoolSize;
-        }
-
         this.maxPoolSize = maxPoolSize;
         return this;
     }
 
+    /**
+     * Set the maximum queue capacity of the thread pool
+     *
+     * @param maxQueueCapacity the maximum queue capacity
+     * @return the server builder
+     */
+    public ServerBuilder setMaxQueueCapacity(int maxQueueCapacity) {
+        this.maxQueueCapacity = maxQueueCapacity;
+        return this;
+    }
+
     public CabinServer build() {
-        return new CabinServer(port, 96);
+        return new CabinServer(port, defaultPoolSize, maxPoolSize, maxQueueCapacity);
     }
 }

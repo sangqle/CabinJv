@@ -25,7 +25,7 @@ public class AppHandler {
         try {
             int appId = req.getQueryParamAsInt("appId", 0);
             long userId = req.getQueryParamAsLong("userId", 0L);
-            Thread.sleep(Math.round(Math.random() * 500));
+            Thread.sleep(Math.round(Math.random() * 400));
             resp.writeBody("Hello, User ID: " + userId + ", App ID: " + appId);
         } catch (Exception e) {
             CabinLogger.error(e.getMessage(), e);

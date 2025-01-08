@@ -38,13 +38,17 @@ public class CabinServer {
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     private final int port;
+    private final int defaultPoolSize;
     private final int maxPoolSize;
+    private final int maxQueueCapacity;
     private final CabinWorkerPool workerPool;
 
-    protected CabinServer(int port, int maxPoolSize) {
+    protected CabinServer(int port, int defaultPoolSize, int maxPoolSize, int maxQueueCapacity) {
         this.port = port;
+        this.defaultPoolSize = defaultPoolSize;
         this.maxPoolSize = maxPoolSize;
-        this.workerPool = new CabinWorkerPool(maxPoolSize > 4 ? maxPoolSize / 4 : 1, maxPoolSize); // Initialize with configured size
+        this.maxQueueCapacity = maxQueueCapacity;
+        this.workerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
     }
 
     /**
@@ -57,7 +61,6 @@ public class CabinServer {
 
         // Schedule resource usage logging every 10 seconds
         scheduler.scheduleAtFixedRate(this::logResourceUsage, 0, 10, TimeUnit.SECONDS);
-
 
         CabinLogger.info("Server started on port " + port);
 
@@ -218,7 +221,7 @@ public class CabinServer {
             response.setStatusCode(500);
             response.writeBody("Internal Server Error");
             response.send();
-        } catch (IOException e) {
+        } catch (Exception e) {
             CabinLogger.error("Error sending internal server error response: " + e.getMessage(), e);
         }
     }
@@ -302,38 +305,33 @@ public class CabinServer {
         long heapMax = heapMemoryUsage.getMax();
         long nonHeapUsed = nonHeapMemoryUsage.getUsed();
 
-        // 3. Thread metrics
-        int threadCount = ManagementFactory.getThreadMXBean().getThreadCount();
-        int daemonThreadCount = ManagementFactory.getThreadMXBean().getDaemonThreadCount();
-        int peakThreadCount = ManagementFactory.getThreadMXBean().getPeakThreadCount();
-
         // Log the information
         CabinLogger.info("Resource Usage ----------------------------------------------------------");
-       // Log full system metrics
-CabinLogger.info(String.format(
-        "+---------------------+---------------------+\n" +
-        "| Metric              | Value               |\n" +
-        "+---------------------+---------------------+\n" +
-        "| Process CPU Load    | %.2f%%              |\n" +
-        "| System CPU Load     | %.2f%%              |\n" +
-        "| Total Physical Mem  | %,d bytes           |\n" +
-        "| Used Physical Mem   | %,d bytes           |\n" +
-        "| Free Physical Mem   | %,d bytes           |\n" +
-        "| Heap Memory Used    | %,d bytes           |\n" +
-        "| Heap Memory Max     | %,d bytes           |\n" +
-        "| Non-Heap Mem Used   | %,d bytes           |\n" +
-        "+---------------------+---------------------+",
-        processCpuLoad, systemCpuLoad, totalPhysicalMemorySize, usedPhysicalMemorySize, freePhysicalMemorySize, heapUsed, heapMax, nonHeapUsed));
+        // Log full system metrics
+        CabinLogger.info(String.format(
+                "+---------------------+---------------------+\n" +
+                        "| Metric              | Value               |\n" +
+                        "+---------------------+---------------------+\n" +
+                        "| Process CPU Load    | %.2f%%              |\n" +
+                        "| System CPU Load     | %.2f%%              |\n" +
+                        "| Total Physical Mem  | %,d bytes           |\n" +
+                        "| Used Physical Mem   | %,d bytes           |\n" +
+                        "| Free Physical Mem   | %,d bytes           |\n" +
+                        "| Heap Memory Used    | %,d bytes           |\n" +
+                        "| Heap Memory Max     | %,d bytes           |\n" +
+                        "| Non-Heap Mem Used   | %,d bytes           |\n" +
+                        "+---------------------+---------------------+",
+                processCpuLoad, systemCpuLoad, totalPhysicalMemorySize, usedPhysicalMemorySize, freePhysicalMemorySize, heapUsed, heapMax, nonHeapUsed));
 
-CabinLogger.info(String.format(
-        "+---------------------+---------------------+\n" +
-        "| Worker Pool Metric  | Value               |\n" +
-        "+---------------------+---------------------+\n" +
-        "| Worker Pool Size    | %d                  |\n" +
-        "| Active Threads      | %d                  |\n" +
-        "| Pending Tasks       | %d                  |\n" +
-        "| Largest Pool Size   | %d                  |\n" +
-        "+---------------------+---------------------+",
-        workerPool.getPoolSize(), workerPool.getActiveThreadCount(), workerPool.getPendingTaskCount(), workerPool.getLargestPoolSize()));
+        CabinLogger.info(String.format(
+                "+---------------------+---------------------+\n" +
+                        "| Worker Pool Metric  | Value               |\n" +
+                        "+---------------------+---------------------+\n" +
+                        "| Worker Pool Size    | %d                  |\n" +
+                        "| Active Threads      | %d                  |\n" +
+                        "| Pending Tasks       | %d                  |\n" +
+                        "| Largest Pool Size   | %d                  |\n" +
+                        "+---------------------+---------------------+",
+                workerPool.getPoolSize(), workerPool.getActiveThreadCount(), workerPool.getPendingTaskCount(), workerPool.getLargestPoolSize()));
     }
 }
