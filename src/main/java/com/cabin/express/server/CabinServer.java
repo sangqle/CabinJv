@@ -1,5 +1,6 @@
 package com.cabin.express.server;
 
+import com.cabin.express.exception.GlobalExceptionHandler;
 import com.cabin.express.loggger.CabinLogger;
 import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
@@ -25,6 +26,7 @@ import com.sun.management.OperatingSystemMXBean;
 
 /**
  * A simple HTTP server using Java NIO.
+ *
  * @author Sang Le
  * @version 1.0.0
  * @since 2024-12-24
@@ -218,8 +220,7 @@ public class CabinServer {
             CabinLogger.error("Error handling read event: " + e.getMessage(), e);
             closeChannelAndCancelKey(clientChannel, key);
         } catch (Throwable e) {
-            CabinLogger.error("Unexpected error handling read event: " + e.getMessage(), e);
-            sendInternalServerError(clientChannel);
+            GlobalExceptionHandler.handleException(e, new Response(clientChannel));
             closeChannelAndCancelKey(clientChannel, key);
         }
     }

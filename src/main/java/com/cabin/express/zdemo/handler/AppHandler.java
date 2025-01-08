@@ -7,7 +7,6 @@ import com.cabin.express.zdemo.db.ProductMySQL;
 import com.cabin.express.zdemo.db.UserMySQL;
 import com.cabin.express.zdemo.dto.Product;
 import com.cabin.express.zdemo.dto.UserInfo;
-import net.bytebuddy.implementation.bytecode.Throw;
 
 import java.util.HashMap;
 import java.util.List;
@@ -21,17 +20,16 @@ public class AppHandler {
     private AppHandler() {
     }
 
-    public void hello(Request req, Response resp) throws IOException {
+    public void hello(Request req, Response resp) {
         try {
             int appId = req.getQueryParamAsInt("appId", 0);
             long userId = req.getQueryParamAsLong("userId", 0L);
             Thread.sleep(Math.round(Math.random() * 400));
             resp.writeBody("Hello, User ID: " + userId + ", App ID: " + appId);
+            resp.send();
         } catch (Exception e) {
             CabinLogger.error(e.getMessage(), e);
-            resp.writeBody("Hello, User ID: 0, App ID: 0");
         }
-        resp.send();
     }
 
     public void addUser(Request req, Response resp) throws IOException {
