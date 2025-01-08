@@ -205,9 +205,21 @@ public class CabinServer {
         } catch (IOException e) {
             CabinLogger.error("Error handling read event: " + e.getMessage(), e);
             closeChannelAndCancelKey(clientChannel, key);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             CabinLogger.error("Unexpected error handling read event: " + e.getMessage(), e);
+            sendInternalServerError(clientChannel);
             closeChannelAndCancelKey(clientChannel, key);
+        }
+    }
+
+    private void sendInternalServerError(SocketChannel clientChannel) {
+        try {
+            Response response = new Response(clientChannel);
+            response.setStatusCode(500);
+            response.writeBody("Internal Server Error");
+            response.send();
+        } catch (IOException e) {
+            CabinLogger.error("Error sending internal server error response: " + e.getMessage(), e);
         }
     }
 

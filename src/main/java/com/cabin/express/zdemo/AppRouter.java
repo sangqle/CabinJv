@@ -17,6 +17,9 @@ public class AppRouter {
         router.post("/users", AppHandler.Instance::addUser);
         router.get("/users", AppHandler.Instance::getSliceUsers);
 
+        router.post("/products", AppHandler.Instance::addProduct);
+        router.get("/products", AppHandler.Instance::getSliceProducts);
+
         System.err.println("Endpoints registered: " + router.getEndpoint());
 
         return router;
