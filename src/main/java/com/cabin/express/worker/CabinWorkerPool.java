@@ -4,8 +4,9 @@ import java.util.concurrent.*;
 
 /**
  * A worker pool for executing tasks in a multi-threaded environment.
- * Author Sang Le
- * Created: 2024-12-24
+ * @author Sang Le
+ * @version 1.0.0
+ * @since 2024-12-24
  */
 public class CabinWorkerPool {
     private final ThreadPoolExecutor threadPoolExecutor;

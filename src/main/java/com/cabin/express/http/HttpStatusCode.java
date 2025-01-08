@@ -1,5 +1,11 @@
 package com.cabin.express.http;
 
+/**
+ * This class contains constants for common HTTP status codes.
+ * @author Sang Le
+ * @version 1.0.0
+ * @since 2024-12-24
+ */
 public class HttpStatusCode {
     public static final int OK = 200;
     public static final int CREATED = 201;

@@ -18,8 +18,9 @@ import java.util.regex.Pattern;
  * methods and handle requests based on the method and path of the request. The Router class also supports
  * middleware, which can be used to perform operations before or after handling a request.
  * <p>
- * Author: Sang Le
- * Created: 2024-12-24
+ * @author Sang Le
+ * @version 1.0.0
+ * @since 2024-12-24
  */
 public class Router {
 

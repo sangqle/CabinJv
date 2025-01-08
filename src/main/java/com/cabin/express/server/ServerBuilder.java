@@ -1,13 +1,11 @@
 package com.cabin.express.server;
 
-import com.sun.management.OperatingSystemMXBean;
-
-import java.lang.management.ManagementFactory;
-
 /**
  * A builder class for creating a CabinServer instance
- * Author: Sang Le
- * Created: 2024-12-24
+ *
+ * @author Sang Le
+ * @version 1.0.0
+ * @since 2024-12-24
  * <p>
  * Example usage:
  * <pre>

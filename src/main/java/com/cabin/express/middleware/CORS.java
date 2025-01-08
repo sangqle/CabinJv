@@ -8,6 +8,18 @@ import com.cabin.express.interfaces.Middleware;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * Represents a middleware chain for an HTTP request.
+ * <p>
+ * The MiddlewareChain class is used to apply a list of middleware to an HTTP request. It processes each middleware
+ * in the chain in order, passing the request and response objects to each middleware. The MiddlewareChain class
+ * also provides a way to call the final route handler after all middleware have been applied.
+ * <p>
+ *
+ * @author Sang Le
+ * @version 1.0.0
+ * @since 2024-12-24
+ */
 public class CORS implements Middleware {
     private final List<String> allowedOrigins;
     private final List<String> allowedMethods;

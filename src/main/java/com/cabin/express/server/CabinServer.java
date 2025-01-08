@@ -25,8 +25,9 @@ import com.sun.management.OperatingSystemMXBean;
 
 /**
  * A simple HTTP server using Java NIO.
- * Author: Sang Le
- * Created: 2024-12-24
+ * @author Sang Le
+ * @version 1.0.0
+ * @since 2024-12-24
  */
 
 public class CabinServer {

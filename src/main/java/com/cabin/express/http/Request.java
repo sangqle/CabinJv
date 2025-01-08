@@ -10,6 +10,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Represents an HTTP request.
+ * @author Sang Le
+ * @version 1.0.0
+ * @since 2024-12-24
+ */
 public class Request {
     private String method;
     private String path;

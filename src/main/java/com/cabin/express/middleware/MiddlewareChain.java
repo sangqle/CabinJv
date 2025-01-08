@@ -9,6 +9,18 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Iterator;
 
+/**
+ * Represents a middleware chain for an HTTP request.
+ * <p>
+ * The MiddlewareChain class is used to apply a list of middleware to an HTTP request. It processes each middleware
+ * in the chain in order, passing the request and response objects to each middleware. The MiddlewareChain class
+ * also provides a way to call the final route handler after all middleware have been applied.
+ * <p>
+ *
+ * @version 1.0.0
+ * @since 2024-12-24
+ * @author Sang Le
+ */
 public class MiddlewareChain {
     private final Iterator<Middleware> middlewareIterator;
     private final Handler routeHandler;
