@@ -18,7 +18,7 @@ package com.cabin.express.server;
 
 public class ServerBuilder {
     private int port = 8080;
-    private int defaultPoolSize = 50;
+    private int defaultPoolSize = 20;
     private int maxPoolSize = 200;
     private int maxQueueCapacity = 2000;
 
