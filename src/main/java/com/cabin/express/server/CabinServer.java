@@ -39,12 +39,17 @@ public class CabinServer {
     private Map<String, Boolean> endpointMap = new HashMap<>();
     private final List<Middleware> globalMiddlewares = new ArrayList<>();
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    private final ThreadLocal<ByteBuffer> bufferPool = ThreadLocal.withInitial(() -> ByteBuffer.allocate(1024));
 
     private final int port;
     private final int defaultPoolSize;
     private final int maxPoolSize;
     private final int maxQueueCapacity;
     private final CabinWorkerPool workerPool;
+
+    private long peakHeapUsed = 0;
+    private long peakNonHeapUsed = 0;
+    private long peakUsedPhysicalMemorySize = 0;
 
     /**
      * Creates a new server with the specified port number, default pool size, maximum pool size, and maximum queue capacity.
@@ -170,7 +175,9 @@ public class CabinServer {
     private void handleRead(SelectionKey key) throws IOException {
         SocketChannel clientChannel = (SocketChannel) key.channel();
         try {
-            ByteBuffer buffer = ByteBuffer.allocate(1024);
+
+            ByteBuffer buffer = bufferPool.get();
+            buffer.clear();
 
             if (!clientChannel.isOpen()) {
                 CabinLogger.info("Channel is closed: " + clientChannel.getRemoteAddress());
@@ -294,33 +301,28 @@ public class CabinServer {
         }
     }
 
-    /**
-     * Log resource usage
-     */
     private void logResourceUsage() {
-        // Get the OperatingSystemMXBean for system-level metrics
         OperatingSystemMXBean osBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
 
-        // Get the MemoryMXBean for JVM-level metrics
         MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
         MemoryUsage heapMemoryUsage = memoryMXBean.getHeapMemoryUsage();
         MemoryUsage nonHeapMemoryUsage = memoryMXBean.getNonHeapMemoryUsage();
 
-        // 1. System-level metrics
-        double processCpuLoad = osBean.getProcessCpuLoad() * 100; // CPU usage of your application
-        double systemCpuLoad = osBean.getSystemCpuLoad() * 100;  // CPU usage of the entire system
+        double processCpuLoad = osBean.getProcessCpuLoad() * 100;
+        double systemCpuLoad = osBean.getSystemCpuLoad() * 100;
         long totalPhysicalMemorySize = osBean.getTotalPhysicalMemorySize();
         long freePhysicalMemorySize = osBean.getFreePhysicalMemorySize();
         long usedPhysicalMemorySize = totalPhysicalMemorySize - freePhysicalMemorySize;
 
-        // 2. JVM-level metrics
         long heapUsed = heapMemoryUsage.getUsed();
         long heapMax = heapMemoryUsage.getMax();
         long nonHeapUsed = nonHeapMemoryUsage.getUsed();
 
-        // Log the information
+        peakHeapUsed = Math.max(peakHeapUsed, heapUsed);
+        peakNonHeapUsed = Math.max(peakNonHeapUsed, nonHeapUsed);
+        peakUsedPhysicalMemorySize = Math.max(peakUsedPhysicalMemorySize, usedPhysicalMemorySize);
+
         CabinLogger.info("Resource Usage ----------------------------------------------------------");
-        // Log full system metrics
         CabinLogger.info(String.format(
                 "+---------------------+---------------------+\n" +
                         "| Metric              | Value               |\n" +
@@ -333,8 +335,11 @@ public class CabinServer {
                         "| Heap Memory Used    | %,d bytes           |\n" +
                         "| Heap Memory Max     | %,d bytes           |\n" +
                         "| Non-Heap Mem Used   | %,d bytes           |\n" +
+                        "| Peak Heap Mem Used  | %,d bytes           |\n" +
+                        "| Peak Non-Heap Mem   | %,d bytes           |\n" +
+                        "| Peak Used Phys Mem  | %,d bytes           |\n" +
                         "+---------------------+---------------------+",
-                processCpuLoad, systemCpuLoad, totalPhysicalMemorySize, usedPhysicalMemorySize, freePhysicalMemorySize, heapUsed, heapMax, nonHeapUsed));
+                processCpuLoad, systemCpuLoad, totalPhysicalMemorySize, usedPhysicalMemorySize, freePhysicalMemorySize, heapUsed, heapMax, nonHeapUsed, peakHeapUsed, peakNonHeapUsed, peakUsedPhysicalMemorySize));
 
         CabinLogger.info(String.format(
                 "+---------------------+---------------------+\n" +
@@ -344,7 +349,11 @@ public class CabinServer {
                         "| Active Threads      | %d                  |\n" +
                         "| Pending Tasks       | %d                  |\n" +
                         "| Largest Pool Size   | %d                  |\n" +
-                        "+---------------------+---------------------+",
+                        "+---------------------+",
                 workerPool.getPoolSize(), workerPool.getActiveThreadCount(), workerPool.getPendingTaskCount(), workerPool.getLargestPoolSize()));
     }
 }
+
+
+
+
