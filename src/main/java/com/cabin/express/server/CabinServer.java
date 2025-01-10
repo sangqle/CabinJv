@@ -197,32 +197,10 @@ public class CabinServer {
                 byte[] data = new byte[buffer.remaining()];
                 buffer.get(data);
 
-                try (InputStream inputStream = new ByteArrayInputStream(data)) {
-                    Request request = new Request(inputStream);
-                    Response response = new Response(clientChannel);
-
-                    boolean handled = false;
-                    for (Router router : routers) {
-                        if (router.handleRequest(request, response)) {
-                            handled = true;
-                            break;
-                        }
-                    }
-
-                    if (!handled) {
-                        response.setStatusCode(404);
-                        response.writeBody("Not Found");
-                        response.send();
-                    }
-                }
+                handleClientRequest(clientChannel, data);
             }
         } catch (SocketException e) {
-            if ("Connection reset".equals(e.getMessage())) {
-                CabinLogger.info("Connection reset by peer: " + e.getMessage());
-            } else {
-                CabinLogger.error("Socket exception: " + e.getMessage(), e);
-            }
-            closeChannelAndCancelKey(clientChannel, key);
+            handleSocketException(clientChannel, key, e);
         } catch (IOException e) {
             CabinLogger.error("Error handling read event: " + e.getMessage(), e);
             closeChannelAndCancelKey(clientChannel, key);
@@ -230,6 +208,42 @@ public class CabinServer {
             GlobalExceptionHandler.handleException(e, new Response(clientChannel));
             closeChannelAndCancelKey(clientChannel, key);
         }
+    }
+
+    private void handleClientRequest(SocketChannel clientChannel, byte[] data) {
+        try (InputStream inputStream = new ByteArrayInputStream(data)) {
+            Request request = new Request(inputStream);
+            Response response = new Response(clientChannel);
+
+            boolean handled = false;
+            for (Router router : routers) {
+                if (router.handleRequest(request, response)) {
+                    handled = true;
+                    break;
+                }
+            }
+
+            if (!handled) {
+                response.setStatusCode(404);
+                response.writeBody("Not Found");
+                response.send();
+            }
+        } catch (IOException e) {
+            CabinLogger.error("Error processing client request: " + e.getMessage(), e);
+            sendInternalServerError(clientChannel);
+        } catch (Throwable e) {
+            GlobalExceptionHandler.handleException(e, new Response(clientChannel));
+            sendInternalServerError(clientChannel);
+        }
+    }
+
+    private void handleSocketException(SocketChannel clientChannel, SelectionKey key, SocketException e) {
+        if ("Connection reset".equals(e.getMessage())) {
+            CabinLogger.info("Connection reset by peer: " + e.getMessage());
+        } else {
+            CabinLogger.error("Socket exception: " + e.getMessage(), e);
+        }
+        closeChannelAndCancelKey(clientChannel, key);
     }
 
     private void sendInternalServerError(SocketChannel clientChannel) {
