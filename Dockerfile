@@ -4,9 +4,6 @@ FROM openjdk:17-jdk-slim
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy the Gradle wrapper files
-COPY gradle/wrapper/gradle-wrapper.jar gradle/wrapper/gradle-wrapper.properties ./gradlew ./gradlew.bat /app/
-
 # Copy the rest of the project files
 COPY . /app
 
