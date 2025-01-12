@@ -142,7 +142,7 @@ public class CabinServer {
 
         // Open a server socket channel
         ServerSocketChannel serverChannel = ServerSocketChannel.open();
-        serverChannel.bind(new InetSocketAddress("0.0.0.0", port));
+        serverChannel.bind(new InetSocketAddress(port));
         serverChannel.configureBlocking(false); // Set to non-blocking
 
         // Register the channel with the selector for accepting connections
