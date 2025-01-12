@@ -9,6 +9,12 @@ repositories {
     mavenCentral()
 }
 
+ext {
+    libDirName = 'lib'
+    mainClassName = project.hasProperty("mainClass") ? project.getProperty("mainClass") : 'com.cabin.express.zdemo.CabinDemoServer'
+    gradleVersion = gradleVersion = gradle.gradleVersion
+}
+
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
@@ -28,4 +34,19 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+jar {
+    manifest {
+        attributes(
+                'Gradle-Version': gradleVersion,
+                'Created-By': System.getProperty("java.version"),
+                'Class-Path': configurations.runtimeClasspath.files.collect {
+                    libDirName + '/' + it.getName() }.join(' '),
+                'Main-Class': mainClassName,
+        )
+    }
+    if (project.hasProperty('jarBaseName')) {
+        archiveBaseName = project.getProperty('jarBaseName')
+    }
 }
