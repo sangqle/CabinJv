@@ -23,7 +23,7 @@ FROM openjdk:17-jdk-slim
 WORKDIR /app
 
 # Copy the built application from the build stage
-COPY --from=build /app/build/libs/CabinJ-1.0-SNAPSHOT.jar /app/
+COPY . /app
 
 # Expose the port the application runs on
 EXPOSE 8080
