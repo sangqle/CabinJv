@@ -5,7 +5,7 @@ FROM openjdk:17-jdk-slim AS build
 WORKDIR /app
 
 # Copy the Gradle wrapper files
-COPY gradle/wrapper/gradle-wrapper.jar gradle/wrapper/gradle-wrapper.properties ./gradlew ./gradlew.bat /app/
+COPY gradle/wrapper/gradle-wrapper.jar gradle/wrapper/gradle-wrapper.properties gradlew gradlew.bat /app/
 
 # Copy the rest of the project files
 COPY . /app
@@ -23,7 +23,7 @@ FROM openjdk:17-jdk-slim
 WORKDIR /app
 
 # Copy the built application from the build stage
-COPY . /app
+COPY --from=build /app/build/libs/*.jar /app/
 
 # Expose the port the application runs on
 EXPOSE 8080
