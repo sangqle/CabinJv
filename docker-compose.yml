@@ -4,7 +4,7 @@ services:
   cabin-server:
     build: .
     ports:
-      - "8080:8080"
+      - "8888:8888"
     environment:
       - JAVA_OPTS=-Xmx512m
     command: ["java", "-jar", "CabinJ-1.0-SNAPSHOT.jar"]

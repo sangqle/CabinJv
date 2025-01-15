@@ -15,7 +15,7 @@ public class CabinDemoServer  {
 
         CabinLogger.info("Starting CabinJ Framework...");
         try {
-            CabinServer server = new ServerBuilder().setMaxPoolSize(200).setMaxQueueCapacity(100).build();
+            CabinServer server = new ServerBuilder().setPort(8888).setMaxPoolSize(200).setMaxQueueCapacity(100).build();
 
             List<String> allowedOrigins = Arrays.asList("*");
             List<String> allowedMethods = Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS");
