@@ -9,4 +9,4 @@ services:
       - JAVA_OPTS=-Xmx512m
     volumes:
       - .:/app
-    command: ["java", "-jar", "build/libs/CabinJ-1.0-SNAPSHOT.jar"]
+    command: ["java", "-jar", "CabinJ-1.0-SNAPSHOT.jar"]
