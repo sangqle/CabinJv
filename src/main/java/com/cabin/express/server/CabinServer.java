@@ -142,7 +142,7 @@ public class CabinServer {
 
         // Open a server socket channel
         ServerSocketChannel serverChannel = ServerSocketChannel.open();
-        serverChannel.bind(new InetSocketAddress(port));
+        serverChannel.bind(new InetSocketAddress("0.0.0.0", port));
         serverChannel.configureBlocking(false); // Set to non-blocking
 
         // Register the channel with the selector for accepting connections
@@ -337,34 +337,9 @@ public class CabinServer {
         peakUsedPhysicalMemorySize = Math.max(peakUsedPhysicalMemorySize, usedPhysicalMemorySize);
 
         CabinLogger.info("Resource Usage ----------------------------------------------------------");
-        CabinLogger.info(String.format(
-                "+---------------------+---------------------+\n" +
-                        "| Metric              | Value               |\n" +
-                        "+---------------------+---------------------+\n" +
-                        "| Process CPU Load    | %.2f%%              |\n" +
-                        "| System CPU Load     | %.2f%%              |\n" +
-                        "| Total Physical Mem  | %,d bytes           |\n" +
-                        "| Used Physical Mem   | %,d bytes           |\n" +
-                        "| Free Physical Mem   | %,d bytes           |\n" +
-                        "| Heap Memory Used    | %,d bytes           |\n" +
-                        "| Heap Memory Max     | %,d bytes           |\n" +
-                        "| Non-Heap Mem Used   | %,d bytes           |\n" +
-                        "| Peak Heap Mem Used  | %,d bytes           |\n" +
-                        "| Peak Non-Heap Mem   | %,d bytes           |\n" +
-                        "| Peak Used Phys Mem  | %,d bytes           |\n" +
-                        "+---------------------+---------------------+",
-                processCpuLoad, systemCpuLoad, totalPhysicalMemorySize, usedPhysicalMemorySize, freePhysicalMemorySize, heapUsed, heapMax, nonHeapUsed, peakHeapUsed, peakNonHeapUsed, peakUsedPhysicalMemorySize));
+        CabinLogger.info(String.format("+---------------------+---------------------+\n" + "| Metric              | Value               |\n" + "+---------------------+---------------------+\n" + "| Process CPU Load    | %.2f%%              |\n" + "| System CPU Load     | %.2f%%              |\n" + "| Total Physical Mem  | %,d bytes           |\n" + "| Used Physical Mem   | %,d bytes           |\n" + "| Free Physical Mem   | %,d bytes           |\n" + "| Heap Memory Used    | %,d bytes           |\n" + "| Heap Memory Max     | %,d bytes           |\n" + "| Non-Heap Mem Used   | %,d bytes           |\n" + "| Peak Heap Mem Used  | %,d bytes           |\n" + "| Peak Non-Heap Mem   | %,d bytes           |\n" + "| Peak Used Phys Mem  | %,d bytes           |\n" + "+---------------------+---------------------+", processCpuLoad, systemCpuLoad, totalPhysicalMemorySize, usedPhysicalMemorySize, freePhysicalMemorySize, heapUsed, heapMax, nonHeapUsed, peakHeapUsed, peakNonHeapUsed, peakUsedPhysicalMemorySize));
 
-        CabinLogger.info(String.format(
-                "+---------------------+---------------------+\n" +
-                        "| Worker Pool Metric  | Value               |\n" +
-                        "+---------------------+---------------------+\n" +
-                        "| Worker Pool Size    | %d                  |\n" +
-                        "| Active Threads      | %d                  |\n" +
-                        "| Pending Tasks       | %d                  |\n" +
-                        "| Largest Pool Size   | %d                  |\n" +
-                        "+---------------------+",
-                workerPool.getPoolSize(), workerPool.getActiveThreadCount(), workerPool.getPendingTaskCount(), workerPool.getLargestPoolSize()));
+        CabinLogger.info(String.format("+---------------------+---------------------+\n" + "| Worker Pool Metric  | Value               |\n" + "+---------------------+---------------------+\n" + "| Worker Pool Size    | %d                  |\n" + "| Active Threads      | %d                  |\n" + "| Pending Tasks       | %d                  |\n" + "| Largest Pool Size   | %d                  |\n" + "+---------------------+", workerPool.getPoolSize(), workerPool.getActiveThreadCount(), workerPool.getPendingTaskCount(), workerPool.getLargestPoolSize()));
     }
 }
 

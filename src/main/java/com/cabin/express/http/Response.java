@@ -152,6 +152,11 @@ public class Response {
             // Convert body to bytes (if not null)
             ByteBuffer bodyBuffer = body != null ? ByteBuffer.wrap(body.toString().getBytes(StandardCharsets.UTF_8)) : null;
 
+            // check if the client channel is open
+            if (!clientChannel.isOpen()) {
+                return;
+            }
+
             // Write the headers first
             while (headerBuffer.hasRemaining()) {
                 clientChannel.write(headerBuffer);

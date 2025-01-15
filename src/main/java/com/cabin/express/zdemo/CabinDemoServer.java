@@ -17,7 +17,7 @@ public class CabinDemoServer  {
         try {
             CabinServer server = new ServerBuilder().setMaxPoolSize(200).setMaxQueueCapacity(100).build();
 
-            List<String> allowedOrigins = Arrays.asList("https://viblo.asia");
+            List<String> allowedOrigins = Arrays.asList("*");
             List<String> allowedMethods = Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS");
             List<String> allowedHeaders = Arrays.asList("Content-Type", "Authorization");
 
