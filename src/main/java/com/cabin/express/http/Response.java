@@ -12,6 +12,7 @@ import java.util.Map;
 
 /**
  * Represents an HTTP response.
+ *
  * @author Sang Le
  * @version 1.0.0
  * @since 2024-12-24
