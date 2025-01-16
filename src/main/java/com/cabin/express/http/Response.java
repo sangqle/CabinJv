@@ -155,6 +155,7 @@ public class Response {
 
             // Ensure the client channel is open
             if (!clientChannel.isOpen()) {
+                CabinLogger.error(String.format("Client channel is closed: %s", clientChannel), null);
                 return;
             }
 
