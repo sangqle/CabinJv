@@ -1,7 +1,9 @@
 package com.cabin.express.http;
 
 import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.server.CabinServer;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mysql.cj.log.Log;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -161,6 +163,7 @@ public class Response {
 
             // Write the headers first
             while (headerBuffer.hasRemaining()) {
+                CabinLogger.debug("Writing headers to client channel...");
                 clientChannel.write(headerBuffer);
             }
 
@@ -170,6 +173,7 @@ public class Response {
                     clientChannel.write(bodyBuffer);
                 }
             }
+            CabinLogger.debug("Response sent to client");
         } catch (Exception e) {
             if ("Broken pipe".equals(e.getMessage())) {
                 CabinLogger.error("Client closed connection: " + e.getMessage(), e);
