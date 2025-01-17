@@ -174,12 +174,14 @@ public class Response {
                 }
             }
             CabinLogger.debug("Response sent to client");
-        } catch (Exception e) {
+        } catch (IOException e) {
             if ("Broken pipe".equals(e.getMessage())) {
                 CabinLogger.error("Client closed connection: " + e.getMessage(), e);
             } else {
                 CabinLogger.error("Error sending response: " + e.getMessage(), e);
             }
+        } catch (Exception e) {
+            CabinLogger.error("Unexpected error sending response: " + e.getMessage(), e);
         }
     }
 
