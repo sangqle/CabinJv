@@ -1,6 +1,7 @@
 package com.cabin.express.zdemo;
 
 import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.router.Router;
 import com.cabin.express.server.CabinServer;
 import com.cabin.express.server.ServerBuilder;
 
@@ -15,8 +16,13 @@ public class CabinDemoServer {
         try {
             CabinServer server = new ServerBuilder().setMaxPoolSize(200).setMaxQueueCapacity(1000).build();
 
-            server.use(AppRouter.Instance.registerRoutes());
-            server.use(ApiRouter.Instance.registerRoutes());
+            Router router = new Router();
+            router.get("/", (req, res) -> {
+                res.writeBody("Hello, CabinJ Framework!");
+                res.send();
+            });
+//            server.use(AppRouter.Instance.registerRoutes());
+//            server.use(ApiRouter.Instance.registerRoutes());
 
             server.start();
 
