@@ -4,17 +4,23 @@ FROM openjdk:17-jdk-slim AS build
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy the Gradle wrapper files
+# Copy only Gradle wrapper and configuration files first (cacheable step)
 COPY gradle/wrapper/gradle-wrapper.jar gradle/wrapper/gradle-wrapper.properties ./gradlew ./gradlew.bat /app/
-
-# Copy the rest of the project files
-COPY . /app
 
 # Make the Gradle wrapper script executable
 RUN chmod +x ./gradlew
 
+# Copy `build.gradle` and `settings.gradle` first (cacheable step)
+COPY build.gradle settings.gradle /app/
+
+# Pre-download Gradle dependencies (cacheable step)
+RUN ./gradlew dependencies --no-daemon || return 0
+
+# Copy the rest of the project files
+COPY . /app
+
 # Build the application using Gradle
-RUN ./gradlew build
+RUN ./gradlew build --no-daemon
 
 # Stage 2: Create the runtime image
 FROM openjdk:17-jdk-slim
