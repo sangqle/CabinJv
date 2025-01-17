@@ -1,5 +1,6 @@
 package com.cabin.express.zdemo;
 
+import com.cabin.express.loggger.CabinLogger;
 import com.cabin.express.router.Router;
 
 public class ApiRouter {
@@ -11,6 +12,7 @@ public class ApiRouter {
 
         router.get("/", (req, res) -> {
             res.writeBody("this is api router !");
+            CabinLogger.info("GET /");
             res.send();
         });
 
