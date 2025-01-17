@@ -217,22 +217,22 @@ public class CabinServer {
 
     private void handleClientRequest(SocketChannel clientChannel, byte[] data) {
         try (InputStream inputStream = new ByteArrayInputStream(data)) {
-            Request request = new Request(inputStream);
-            Response response = new Response(clientChannel);
-
-            boolean handled = false;
-            for (Router router : routers) {
-                if (router.handleRequest(request, response)) {
-                    handled = true;
-                    break;
-                }
-            }
-
-            if (!handled) {
-                response.setStatusCode(404);
-                response.writeBody("Not Found");
-                response.send();
-            }
+//            Request request = new Request(inputStream);
+            clientChannel.write(ByteBuffer.wrap("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n".getBytes()));
+//
+//            boolean handled = false;
+//            for (Router router : routers) {
+//                if (router.handleRequest(request, response)) {
+//                    handled = true;
+//                    break;
+//                }
+//            }
+//
+//            if (!handled) {
+//                response.setStatusCode(404);
+//                response.writeBody("Not Found");
+//                response.send();
+//            }
         } catch (IOException e) {
             CabinLogger.error("Error processing client request: " + e.getMessage(), e);
             sendInternalServerError(clientChannel);
