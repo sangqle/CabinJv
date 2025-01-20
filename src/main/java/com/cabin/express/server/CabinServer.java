@@ -79,8 +79,8 @@ public class CabinServer {
         initializeServer();
 
         // Schedule resource usage logging every 10 seconds
-        scheduler.scheduleAtFixedRate(this::logResourceUsage, 0, 10, TimeUnit.SECONDS);
-        scheduler.scheduleAtFixedRate(this::closeIdleConnections, 0, 5, TimeUnit.SECONDS);
+        scheduler.scheduleAtFixedRate(this::logResourceUsage, 0, 60, TimeUnit.SECONDS);
+        scheduler.scheduleAtFixedRate(this::closeIdleConnections, 0, 30, TimeUnit.SECONDS);
 
         CabinLogger.info("Server started on port " + port);
 
@@ -217,26 +217,28 @@ public class CabinServer {
 
     private void handleClientRequest(SocketChannel clientChannel, byte[] data) {
         try (InputStream inputStream = new ByteArrayInputStream(data)) {
-//            Request request = new Request(inputStream);
-            clientChannel.write(ByteBuffer.wrap("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n".getBytes()));
-//
-//            boolean handled = false;
-//            for (Router router : routers) {
-//                if (router.handleRequest(request, response)) {
-//                    handled = true;
-//                    break;
-//                }
-//            }
-//
-//            if (!handled) {
-//                response.setStatusCode(404);
-//                response.writeBody("Not Found");
-//                response.send();
-//            }
+            Request request = new Request(inputStream);
+            Response response = new Response(clientChannel);
+
+            boolean handled = false;
+            for (Router router : routers) {
+                if (router.handleRequest(request, response)) {
+                    handled = true;
+                    break;
+                }
+            }
+
+            if (!handled) {
+                response.setStatusCode(404);
+                response.writeBody("Not Found");
+                response.send();
+            }
+
         } catch (IOException e) {
             CabinLogger.error("Error processing client request: " + e.getMessage(), e);
             sendInternalServerError(clientChannel);
         } catch (Throwable e) {
+            CabinLogger.error("Error processing client request: " + e.getMessage(), e);
             GlobalExceptionHandler.handleException(e, new Response(clientChannel));
             sendInternalServerError(clientChannel);
         }

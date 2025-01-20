@@ -1,6 +1,6 @@
 package com.cabin.express.http;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -25,7 +25,8 @@ public class Request {
     private Map<String, String> pathParams = new HashMap<>();
     private Map<String, String> headers = new HashMap<>();
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final Gson gson = new Gson();
+
 
     public Request(InputStream inputStream) throws Exception {
         parseRequest(inputStream);
@@ -117,7 +118,6 @@ public class Request {
     private void parseBodyAsJson() {
         if (body != null && headers.containsKey("Content-Type") && headers.get("Content-Type").toLowerCase().contains("application/json")) {
             try {
-                bodyAsJson = objectMapper.readValue(body, Map.class);
             } catch (Exception e) {
                 throw new IllegalArgumentException("Failed to parse JSON body: " + e.getMessage(), e);
             }
@@ -144,7 +144,7 @@ public class Request {
     public <T> T getBodyAs(Class<T> clazz) {
         if (body != null && headers.containsKey("Content-Type") && headers.get("Content-Type").toLowerCase().contains("application/json")) {
             try {
-                return objectMapper.readValue(body, clazz);
+                return gson.fromJson(body, clazz);
             } catch (Exception e) {
                 throw new IllegalArgumentException("Failed to parse JSON body: " + e.getMessage(), e);
             }

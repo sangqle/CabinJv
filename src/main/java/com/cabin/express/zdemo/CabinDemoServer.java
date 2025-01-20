@@ -15,14 +15,8 @@ public class CabinDemoServer {
         CabinLogger.info("Starting CabinJ Framework...");
         try {
             CabinServer server = new ServerBuilder().setMaxPoolSize(200).setMaxQueueCapacity(1000).build();
-
-            Router router = new Router();
-            router.get("/", (req, res) -> {
-                res.writeBody("Hello, CabinJ Framework!");
-                res.send();
-            });
-//            server.use(AppRouter.Instance.registerRoutes());
-//            server.use(ApiRouter.Instance.registerRoutes());
+            server.use(AppRouter.Instance.registerRoutes());
+            server.use(ApiRouter.Instance.registerRoutes());
 
             server.start();
 

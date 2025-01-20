@@ -1,9 +1,7 @@
 package com.cabin.express.http;
 
 import com.cabin.express.loggger.CabinLogger;
-import com.cabin.express.server.CabinServer;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mysql.cj.log.Log;
+import com.google.gson.Gson;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -25,7 +23,8 @@ public class Response {
     private Map<String, String> cookies = new HashMap<>();
     private StringBuilder body = new StringBuilder();
     private final SocketChannel clientChannel;
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+
+    private static final Gson gson = new Gson();
 
     private static final String DEFAULT_DOMAIN = "";
     private static final String DEFAULT_PATH = "/";
@@ -34,6 +33,7 @@ public class Response {
     private static final boolean DEFAULT_SECURE = false;
 
     public Response(SocketChannel clientChannel) {
+        CabinLogger.info(String.format("New response created for client: %s", clientChannel));
         this.clientChannel = clientChannel;
     }
 
@@ -118,7 +118,8 @@ public class Response {
      */
     public void writeJsonBody(Object content) throws IOException {
         setHeader("Content-Type", "application/json");
-        body.append(objectMapper.writeValueAsString(content));
+        body.append(gson.toJson(content));
+
     }
 
     /**

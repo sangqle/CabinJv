@@ -23,7 +23,7 @@ java {
 dependencies {
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
-    implementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
+    implementation 'com.google.code.gson:gson:2.10.1'
 
     // playground
     implementation 'mysql:mysql-connector-java:8.0.33'
@@ -36,17 +36,28 @@ test {
     useJUnitPlatform()
 }
 
+task copyDependencies(type: Copy) {
+    from configurations.runtimeClasspath
+    into "$buildDir/libs/libs"
+}
+
+jar {
+    dependsOn copyDependencies
+}
+
 jar {
     manifest {
         attributes(
-                'Gradle-Version': gradleVersion,
-                'Created-By': System.getProperty("java.version"),
+                'Gradle-Version': gradle.gradleVersion, // Fix to reference the Gradle version
+                'Created-By': System.getProperty("java.version") + " (Java)",
                 'Class-Path': configurations.runtimeClasspath.files.collect {
-                    libDirName + '/' + it.getName() }.join(' '),
-                'Main-Class': mainClassName,
+                    "libs/" + it.name // Adjusting the path prefix to match the final layout
+                }.join(' '),
+                'Main-Class': mainClassName // Ensure `mainClassName` is set in your Gradle file
         )
     }
+    // Optional: Configure the base name for the JAR file
     if (project.hasProperty('jarBaseName')) {
-        archiveBaseName = project.getProperty('jarBaseName')
+        archiveBaseName.set(project.getProperty('jarBaseName')) // Gradle 7.x+ syntax
     }
 }
