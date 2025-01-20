@@ -19,7 +19,7 @@ RUN ./gradlew dependencies --no-daemon || return 0
 # Copy the rest of the project files
 COPY . /app
 
-# Build the application using Gradle
+# Build the application and copy dependencies
 RUN ./gradlew build --no-daemon
 
 # Stage 2: Create the runtime image
@@ -28,11 +28,12 @@ FROM openjdk:17-jdk-slim
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy the built application from the build stage
+# Copy the built application JAR and dependencies from the build stage
 COPY --from=build /app/build/libs/CabinJ-1.0-SNAPSHOT.jar /app/
+COPY --from=build /app/build/libs/libs /app/libs
 
 # Expose the port the application runs on
 EXPOSE 8080
 
 # Run the application
-CMD ["java", "-jar", "CabinJ-1.0-SNAPSHOT.jar"]
+CMD ["java", "-cp", "CabinJ-1.0-SNAPSHOT.jar:libs/*", "com.cabin.Main"]
