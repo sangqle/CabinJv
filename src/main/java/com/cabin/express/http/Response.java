@@ -33,7 +33,6 @@ public class Response {
     private static final boolean DEFAULT_SECURE = false;
 
     public Response(SocketChannel clientChannel) {
-        CabinLogger.info(String.format("New response created for client: %s", clientChannel));
         this.clientChannel = clientChannel;
     }
 
@@ -174,7 +173,6 @@ public class Response {
                     clientChannel.write(bodyBuffer);
                 }
             }
-            CabinLogger.debug("Response sent to client");
         } catch (IOException e) {
             if ("Broken pipe".equals(e.getMessage())) {
                 CabinLogger.error("Client closed connection: " + e.getMessage(), e);

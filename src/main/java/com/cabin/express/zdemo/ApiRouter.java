@@ -12,7 +12,6 @@ public class ApiRouter {
 
         router.get("/", (req, res) -> {
             res.writeBody("this is api router !");
-            CabinLogger.info("GET /");
             res.send();
         });
 
