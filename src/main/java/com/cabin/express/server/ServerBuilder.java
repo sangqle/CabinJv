@@ -21,6 +21,7 @@ public class ServerBuilder {
     private int defaultPoolSize = 20;
     private int maxPoolSize = 200;
     private int maxQueueCapacity = 2000;
+    private long timeout = 30000;
 
     /**
      * Set the port number
@@ -73,11 +74,22 @@ public class ServerBuilder {
     }
 
     /**
+     * Set the timeout for the server
+     *
+     * @param timeout the timeout in milliseconds
+     * @return the server builder
+     */
+    public ServerBuilder setTimeout(long timeout) {
+        this.timeout = timeout;
+        return this;
+    }
+
+    /**
      * Build the CabinServer instance
      *
      * @return the CabinServer instance
      */
     public CabinServer build() {
-        return new CabinServer(port, defaultPoolSize, maxPoolSize, maxQueueCapacity);
+        return new CabinServer(port, defaultPoolSize, maxPoolSize, maxQueueCapacity, timeout);
     }
 }

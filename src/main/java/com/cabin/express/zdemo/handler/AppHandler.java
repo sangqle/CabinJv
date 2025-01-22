@@ -24,7 +24,6 @@ public class AppHandler {
         try {
             int appId = req.getQueryParamAsInt("appId", 0);
             long userId = req.getQueryParamAsLong("userId", 0L);
-            Thread.sleep(30000);
             resp.writeBody("Hello, User ID: " + userId + ", App ID: " + appId);
             resp.send();
         } catch (Exception e) {

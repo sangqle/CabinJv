@@ -6,8 +6,8 @@ import com.cabin.express.interfaces.Handler;
 import com.cabin.express.interfaces.Middleware;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Iterator;
+import java.util.List;
 
 /**
  * Represents a middleware chain for an HTTP request.

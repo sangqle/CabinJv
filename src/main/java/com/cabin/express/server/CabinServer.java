@@ -1,29 +1,32 @@
 package com.cabin.express.server;
 
 import com.cabin.express.exception.GlobalExceptionHandler;
-import com.cabin.express.loggger.CabinLogger;
 import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
 import com.cabin.express.interfaces.Middleware;
+import com.cabin.express.loggger.CabinLogger;
 import com.cabin.express.router.Router;
 import com.cabin.express.worker.CabinWorkerPool;
+import com.sun.management.OperatingSystemMXBean;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
+import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
-import java.nio.channels.*;
-import java.net.InetSocketAddress;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
-import com.sun.management.OperatingSystemMXBean;
-
 
 /**
  * A simple HTTP server using Java NIO.
@@ -37,37 +40,32 @@ public class CabinServer {
     private Selector selector;
     private final List<Router> routers = new ArrayList<>();
 
-    private Map<String, Boolean> endpointMap = new HashMap<>();
     private final List<Middleware> globalMiddlewares = new ArrayList<>();
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private final ThreadLocal<ByteBuffer> bufferPool = ThreadLocal.withInitial(() -> ByteBuffer.allocate(1024));
     private final Map<SocketChannel, Long> connectionLastActive = new ConcurrentHashMap<>();
 
     private final int port;
-    private final int defaultPoolSize;
-    private final int maxPoolSize;
-    private final int maxQueueCapacity;
     private final CabinWorkerPool workerPool;
 
     private long peakHeapUsed = 0;
     private long peakNonHeapUsed = 0;
     private long peakUsedPhysicalMemorySize = 0;
-    private final long connectionTimeoutMillis = 3000; // Timeout threshold (30 seconds)
+    private final long connectionTimeoutMillis; // Timeout threshold (30 seconds)
 
     /**
-     * Creates a new server with the specified port number, default pool size, maximum pool size, and maximum queue capacity.
+     * Creates a new server with the specified port number, default pool size,
+     * maximum pool size, and maximum queue capacity.
      *
      * @param port             the port number
      * @param defaultPoolSize  the default number of threads in the thread pool
      * @param maxPoolSize      the maximum number of threads in the thread pool
      * @param maxQueueCapacity the maximum queue capacity
      */
-    protected CabinServer(int port, int defaultPoolSize, int maxPoolSize, int maxQueueCapacity) {
+    protected CabinServer(int port, int defaultPoolSize, int maxPoolSize, int maxQueueCapacity, long connectionTimeoutMillis) {
         this.port = port;
-        this.defaultPoolSize = defaultPoolSize;
-        this.maxPoolSize = maxPoolSize;
-        this.maxQueueCapacity = maxQueueCapacity;
         this.workerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
+        this.connectionTimeoutMillis = connectionTimeoutMillis;
     }
 
     /**
@@ -86,7 +84,7 @@ public class CabinServer {
 
         // Event loop
         while (true) {
-            selector.select(); // Blocks until at least one channel is ready
+            selector.select(30000);
             Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
 
             while (keys.hasNext()) {
@@ -156,7 +154,8 @@ public class CabinServer {
     /**
      * Handles accepting a new incoming connection.
      *
-     * @param serverChannel the server socket channel that is accepting the connection
+     * @param serverChannel the server socket channel that is accepting the
+     *                      connection
      * @throws IOException if an I/O error occurs
      */
     private void handleAccept(ServerSocketChannel serverChannel) throws IOException {
@@ -166,9 +165,7 @@ public class CabinServer {
 
         // Register the new channel for reading
         clientChannel.register(selector, SelectionKey.OP_READ);
-//        CabinLogger.info("Accepted new connection from " + clientChannel.getRemoteAddress());
     }
-
 
     /**
      * Handles reading data from a client connection.
@@ -339,7 +336,6 @@ public class CabinServer {
         }
     }
 
-
     private void logResourceUsage() {
         OperatingSystemMXBean osBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
 
@@ -367,7 +363,3 @@ public class CabinServer {
         CabinLogger.info(String.format("+---------------------+---------------------+\n" + "| Worker Pool Metric  | Value               |\n" + "+---------------------+---------------------+\n" + "| Worker Pool Size    | %d                  |\n" + "| Active Threads      | %d                  |\n" + "| Pending Tasks       | %d                  |\n" + "| Largest Pool Size   | %d                  |\n" + "+---------------------+", workerPool.getPoolSize(), workerPool.getActiveThreadCount(), workerPool.getPendingTaskCount(), workerPool.getLargestPoolSize()));
     }
 }
-
-
-
-

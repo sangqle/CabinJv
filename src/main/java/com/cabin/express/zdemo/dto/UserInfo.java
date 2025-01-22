@@ -1,6 +1,5 @@
 package com.cabin.express.zdemo.dto;
 
-import java.sql.Date;
 import java.sql.Timestamp;
 
 public class UserInfo {
@@ -9,7 +8,6 @@ public class UserInfo {
     private String email;
     private String phone;
     private Timestamp createdAt;
-
 
     @Override
     public String toString() {
@@ -21,7 +19,6 @@ public class UserInfo {
                 ", createdAt=" + createdAt +
                 '}';
     }
-
 
     public Timestamp getCreatedAt() {
         return createdAt;
@@ -63,5 +60,3 @@ public class UserInfo {
         this.username = username;
     }
 }
-
-
