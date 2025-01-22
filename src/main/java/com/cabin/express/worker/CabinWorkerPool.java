@@ -1,9 +1,11 @@
 package com.cabin.express.worker;
 
 import java.util.concurrent.*;
+import java.util.function.Consumer;
 
 /**
  * A worker pool for executing tasks in a multi-threaded environment.
+ *
  * @author Sang Le
  * @version 1.0.0
  * @since 2024-12-24
@@ -32,6 +34,22 @@ public class CabinWorkerPool {
      * @param task the task to execute
      * @throws IllegalStateException if the pool is stopped
      */
+    public void submitTask(Runnable task, Consumer<Runnable> onBackpressure) {
+        if (threadPoolExecutor.isShutdown()) {
+            throw new IllegalStateException("The pool is stopped");
+        }
+
+        if (threadPoolExecutor.getQueue().remainingCapacity() == 0) {
+            if (onBackpressure != null) {
+                onBackpressure.accept(task);
+            } else {
+                throw new RejectedExecutionException("The queue is full");
+            }
+        } else {
+            threadPoolExecutor.submit(task);
+        }
+    }
+
     public void submitTask(Runnable task) {
         if (threadPoolExecutor.isShutdown()) {
             throw new IllegalStateException("The pool is stopped");

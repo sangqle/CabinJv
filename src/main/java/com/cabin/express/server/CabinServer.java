@@ -44,6 +44,8 @@ public class CabinServer {
     // Server configuration
     private final int port;
     private final CabinWorkerPool workerPool;
+    private final CabinWorkerPool readWorkerPool;
+    private final CabinWorkerPool writeWorkerPool;
 
     private final long connectionTimeoutMillis; // Timeout threshold (30 seconds)
     private final long idleConnectionTimeoutMillis; // Idle connection timeout threshold (60 seconds)
@@ -64,6 +66,9 @@ public class CabinServer {
         this.workerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
         this.connectionTimeoutMillis = connectionTimeoutMillis;
         this.idleConnectionTimeoutMillis = idleConnectionTimeoutSeconds;
+
+        this.readWorkerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
+        this.writeWorkerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
     }
 
     /**
@@ -95,30 +100,9 @@ public class CabinServer {
                     if (key.isValid() && key.isAcceptable()) {
                         handleAccept((ServerSocketChannel) key.channel());
                     } else if (key.isValid() && key.isReadable()) {
-                        // Disable read events temporarily
-                        key.interestOps(key.interestOps() & ~SelectionKey.OP_READ);
-
-                        workerPool.submitTask(() -> {
-                            try {
-                                handleRead(key);
-                            } catch (Exception e) {
-                                CabinLogger.error(String.format("Error handling read event: %s", e.getMessage()), e);
-                                try {
-                                    key.channel().close();
-                                } catch (IOException ex) {
-                                    CabinLogger.error("Error closing channel", ex);
-                                }
-                                key.cancel();
-                            } finally {
-                                if (key.isValid()) {
-                                    // Re-enable read events
-                                    key.interestOps(key.interestOps() | SelectionKey.OP_READ);
-                                    key.selector().wakeup(); // Wake up the selector to re-register the key
-                                }
-                            }
-                        });
+                        key.interestOps(key.interestOps() & ~SelectionKey.OP_READ); // Suspend read events temporarily
+                        readWorkerPool.submitTask(() -> handleReadSafely(key), task -> handleBackpressure(key));
                     }
-
                 } catch (Exception e) {
                     CabinLogger.error(String.format("Error handling key: %s", e.getMessage()), e);
                     try {
@@ -134,6 +118,53 @@ public class CabinServer {
 
         // Perform shutdown tasks after exiting the loop
         shutdown();
+    }
+
+    private void handleReadSafely(SelectionKey key) {
+        try {
+            handleRead(key);
+        } catch (Exception ex) {
+            CabinLogger.error("Error handling read event: " + ex.getMessage(), ex);
+            closeChannelSafely(key);
+        } finally {
+            if (key.isValid()) {
+                key.interestOps(key.interestOps() | SelectionKey.OP_READ); // Re-enable read operations
+                key.selector().wakeup(); // Wake up selector to re-register the key
+            }
+        }
+    }
+
+    private void closeChannelSafely(SelectionKey key) {
+        if (key == null) {
+            CabinLogger.error("Attempted to close a null SelectionKey.", null);
+            return;
+        }
+
+        SocketChannel channel = (SocketChannel) key.channel();
+        try {
+            // Cancel the key to deregister the channel from the selector
+            if (key.isValid()) {
+                key.cancel();
+            }
+
+            // Close the channel if it is open
+            if (channel != null && channel.isOpen()) {
+                CabinLogger.info("Closing channel: " + channel.getRemoteAddress());
+                channel.close();
+            }
+        } catch (IOException e) {
+            CabinLogger.error("Error closing channel: " + e.getMessage(), e);
+        } catch (Exception e) {
+            CabinLogger.error("Unexpected error while closing channel: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Backpressure handling
+     */
+    private void handleBackpressure(SelectionKey key) {
+        CabinLogger.info("Backpressure detected. Suspending read events temporarily.");
+        key.interestOps(key.interestOps() & ~SelectionKey.OP_READ);
     }
 
     private void performPeriodicTasks() {
@@ -217,12 +248,11 @@ public class CabinServer {
                 return;
             }
             if (bytesRead > 0) {
-                connectionLastActive.put(clientChannel, System.currentTimeMillis()); // Refresh active time
-                buffer.flip(); // Prepare buffer for reading
+                buffer.flip();
                 byte[] data = new byte[buffer.remaining()];
                 buffer.get(data);
-
-                handleClientRequest(clientChannel, data);
+                // Enqueue a task to process the request and write the response
+                writeWorkerPool.submitTask(() -> handleClientRequest(clientChannel, data));
             }
         } catch (SocketException e) {
             handleSocketException(clientChannel, key, e);
@@ -423,7 +453,7 @@ public class CabinServer {
     public void stop() {
         CabinLogger.info("Stop signal received. Shutting down server...");
         isRunning = false; // Signal the event loop to exit
-        if(selector != null) {
+        if (selector != null) {
             selector.wakeup(); // Wake up the selector to process the change
         }
     }
