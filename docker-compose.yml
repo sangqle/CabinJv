@@ -12,6 +12,11 @@ services:
     command: ["java", "-jar", "CabinJ-1.0-SNAPSHOT.jar"]
     volumes:
       - gradle-cache:/root/.gradle
-
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 1024M
 volumes:
   gradle-cache:
+
