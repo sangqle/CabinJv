@@ -76,15 +76,19 @@ public class CabinServer {
     public void start() throws IOException {
         initializeServer();
 
-        // Schedule resource usage logging every 10 seconds
-        scheduler.scheduleAtFixedRate(this::logResourceUsage, 0, 60, TimeUnit.SECONDS);
-        scheduler.scheduleAtFixedRate(this::closeIdleConnections, 0, 30, TimeUnit.SECONDS);
-
         CabinLogger.info("Server started on port " + port);
 
         // Event loop
         while (true) {
-            selector.select(30000);
+            // Wake up the channels that are ready for I/O operations
+            int readyChannels = selector.select(connectionTimeoutMillis);
+
+            if (readyChannels == 0) {
+                CabinLogger.info("No active connections");
+                performPeriodicTasks();
+                continue;
+            }
+
             Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
 
             while (keys.hasNext()) {
@@ -130,6 +134,15 @@ public class CabinServer {
                 }
             }
 
+        }
+    }
+
+    private void performPeriodicTasks() {
+        try {
+            scheduler.scheduleAtFixedRate(this::logResourceUsage, 0, 30, TimeUnit.SECONDS);
+            scheduler.scheduleAtFixedRate(this::closeIdleConnections, 0, 30, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            CabinLogger.error("Error performing periodic tasks: " + e.getMessage(), e);
         }
     }
 

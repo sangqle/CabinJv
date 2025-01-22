@@ -21,7 +21,7 @@ public class ServerBuilder {
     private int defaultPoolSize = 20;
     private int maxPoolSize = 200;
     private int maxQueueCapacity = 2000;
-    private long timeout = 30000;
+    private long timeout = 500;
 
     /**
      * Set the port number
