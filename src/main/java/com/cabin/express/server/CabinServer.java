@@ -24,6 +24,7 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * A simple HTTP server using Java NIO.
@@ -36,14 +37,16 @@ import java.util.concurrent.*;
 public class CabinServer {
     private Selector selector;
     private final List<Router> routers = new ArrayList<>();
-
     private final List<Middleware> globalMiddlewares = new ArrayList<>();
-    private ScheduledFuture<?> resourceLoggingTask;
-
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private final ThreadLocal<ByteBuffer> bufferPool = ThreadLocal.withInitial(() -> ByteBuffer.allocate(1024));
     private final Map<SocketChannel, Long> connectionLastActive = new ConcurrentHashMap<>();
 
+    // Resource logging task
+    private ScheduledFuture<?> resourceLoggingTask;
+    private ScheduledFuture<?> idleConnectionTask;
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+
+    // Server configuration
     private final int port;
     private final CabinWorkerPool workerPool;
 
@@ -137,9 +140,16 @@ public class CabinServer {
 
     private void performPeriodicTasks() {
         try {
+            // Schedule resource logging task if not already scheduled
             if ((resourceLoggingTask == null || resourceLoggingTask.isCancelled() || resourceLoggingTask.isDone()) && !scheduler.isShutdown() && !scheduler.isTerminated()) {
                 resourceLoggingTask = scheduler.scheduleAtFixedRate(this::logResourceUsage, 0, 30, TimeUnit.SECONDS);
                 CabinLogger.info("Resource logging task scheduled.");
+            }
+
+            // Schedule idle connection cleanup task if not already scheduled
+            if ((idleConnectionTask == null || idleConnectionTask.isCancelled() || idleConnectionTask.isDone()) && !scheduler.isShutdown() && !scheduler.isTerminated()) {
+                idleConnectionTask = scheduler.scheduleAtFixedRate(this::closeIdleConnections, 0, 30, TimeUnit.SECONDS);
+                CabinLogger.info("Idle connection cleanup task scheduled.");
             }
         } catch (Exception e) {
             CabinLogger.error("Error performing periodic tasks: " + e.getMessage(), e);
@@ -371,8 +381,6 @@ public class CabinServer {
         peakUsedPhysicalMemorySize = Math.max(peakUsedPhysicalMemorySize, usedPhysicalMemorySize);
 
         CabinLogger.info("Resource Usage ----------------------------------------------------------");
-        CabinLogger.info(String.format("+---------------------+---------------------+\n" + "| Metric              | Value               |\n" + "+---------------------+---------------------+\n" + "| Process CPU Load    | %.2f%%              |\n" + "| System CPU Load     | %.2f%%              |\n" + "| Total Physical Mem  | %,d bytes           |\n" + "| Used Physical Mem   | %,d bytes           |\n" + "| Free Physical Mem   | %,d bytes           |\n" + "| Heap Memory Used    | %,d bytes           |\n" + "| Heap Memory Max     | %,d bytes           |\n" + "| Non-Heap Mem Used   | %,d bytes           |\n" + "| Peak Heap Mem Used  | %,d bytes           |\n" + "| Peak Non-Heap Mem   | %,d bytes           |\n" + "| Peak Used Phys Mem  | %,d bytes           |\n" + "+---------------------+---------------------+", processCpuLoad, systemCpuLoad, totalPhysicalMemorySize, usedPhysicalMemorySize, freePhysicalMemorySize, heapUsed, heapMax, nonHeapUsed, peakHeapUsed, peakNonHeapUsed, peakUsedPhysicalMemorySize));
-
-        CabinLogger.info(String.format("+---------------------+---------------------+\n" + "| Worker Pool Metric  | Value               |\n" + "+---------------------+---------------------+\n" + "| Worker Pool Size    | %d                  |\n" + "| Active Threads      | %d                  |\n" + "| Pending Tasks       | %d                  |\n" + "| Largest Pool Size   | %d                  |\n" + "+---------------------+", workerPool.getPoolSize(), workerPool.getActiveThreadCount(), workerPool.getPendingTaskCount(), workerPool.getLargestPoolSize()));
+        CabinLogger.info("\n" + "+-------------------------- SYSTEM METRICS ---------------------------+\n" + "| Metric                     | Value                                   \n" + "+----------------------------+-----------------------------------------+\n" + String.format("| Process CPU Load           | %.2f%%                                 \n", processCpuLoad) + String.format("| System CPU Load            | %.2f%%                                 \n", systemCpuLoad) + String.format("| Total Physical Memory      | %,d bytes                              \n", totalPhysicalMemorySize) + String.format("| Used Physical Memory       | %,d bytes                              \n", usedPhysicalMemorySize) + String.format("| Free Physical Memory       | %,d bytes                              \n", freePhysicalMemorySize) + "+----------------------------+-----------------------------------------+\n" + "| MEMORY USAGE                                                      \n" + "+----------------------------+-----------------------------------------+\n" + String.format("| Heap Memory Used           | %,d bytes                              \n", heapUsed) + String.format("| Heap Memory Max            | %,d bytes                              \n", heapMax) + String.format("| Non-Heap Memory Used       | %,d bytes                              \n", nonHeapUsed) + String.format("| Peak Heap Memory Used      | %,d bytes                              \n", peakHeapUsed) + String.format("| Peak Non-Heap Memory Used  | %,d bytes                              \n", peakNonHeapUsed) + String.format("| Peak Used Physical Memory  | %,d bytes                              \n", peakUsedPhysicalMemorySize) + "+----------------------------+-----------------------------------------+\n" + "| WORKER POOL METRICS                                                 \n" + "+----------------------------+-----------------------------------------+\n" + String.format("| Worker Pool Size           | %d                                    \n", workerPool.getPoolSize()) + String.format("| Active Threads             | %d                                    \n", workerPool.getActiveThreadCount()) + String.format("| Pending Tasks              | %d                                    \n", workerPool.getPendingTaskCount()) + String.format("| Largest Pool Size          | %d                                    \n", workerPool.getLargestPoolSize()) + "+----------------------------+-----------------------------------------+\n");
     }
 }
