@@ -22,6 +22,7 @@ public class ServerBuilder {
     private int maxPoolSize = 200;
     private int maxQueueCapacity = 2000;
     private long timeout = 500;
+    private long idleTimeoutMiles = 60 * 1000;
 
     /**
      * Set the port number
@@ -85,11 +86,22 @@ public class ServerBuilder {
     }
 
     /**
+     * Set the idle timeout for the server
+     *
+     * @param idleTimeoutMiles the idle timeout in seconds
+     * @return the server builder
+     */
+    public ServerBuilder setIdleTimeoutMiles(long idleTimeoutMiles) {
+        this.idleTimeoutMiles = idleTimeoutMiles;
+        return this;
+    }
+
+    /**
      * Build the CabinServer instance
      *
      * @return the CabinServer instance
      */
     public CabinServer build() {
-        return new CabinServer(port, defaultPoolSize, maxPoolSize, maxQueueCapacity, timeout);
+        return new CabinServer(port, defaultPoolSize, maxPoolSize, maxQueueCapacity, timeout, idleTimeoutMiles);
     }
 }

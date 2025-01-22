@@ -46,6 +46,9 @@ public class CabinServer {
     private final CabinWorkerPool workerPool;
 
     private final long connectionTimeoutMillis; // Timeout threshold (30 seconds)
+    private final long idleConnectionTimeoutMillis; // Idle connection timeout threshold (60 seconds)
+
+    private volatile boolean isRunning = true; // Flag to control the event loop
 
     /**
      * Creates a new server with the specified port number, default pool size,
@@ -56,10 +59,11 @@ public class CabinServer {
      * @param maxPoolSize      the maximum number of threads in the thread pool
      * @param maxQueueCapacity the maximum queue capacity
      */
-    protected CabinServer(int port, int defaultPoolSize, int maxPoolSize, int maxQueueCapacity, long connectionTimeoutMillis) {
+    protected CabinServer(int port, int defaultPoolSize, int maxPoolSize, int maxQueueCapacity, long connectionTimeoutMillis, long idleConnectionTimeoutSeconds) {
         this.port = port;
         this.workerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
         this.connectionTimeoutMillis = connectionTimeoutMillis;
+        this.idleConnectionTimeoutMillis = idleConnectionTimeoutSeconds;
     }
 
     /**
@@ -69,11 +73,10 @@ public class CabinServer {
      */
     public void start() throws IOException {
         initializeServer();
-
         CabinLogger.info("Server started on port " + port);
 
         // Event loop
-        while (true) {
+        while (isRunning) {
             // Wake up the channels that are ready for I/O operations
             int readyChannels = selector.select(connectionTimeoutMillis);
 
@@ -128,6 +131,9 @@ public class CabinServer {
             }
 
         }
+
+        // Perform shutdown tasks after exiting the loop
+        shutdown();
     }
 
     private void performPeriodicTasks() {
@@ -142,7 +148,7 @@ public class CabinServer {
 
             // Schedule idle connection cleanup task if not already scheduled
             if ((idleConnectionTask == null || idleConnectionTask.isCancelled() || idleConnectionTask.isDone()) && !scheduler.isShutdown() && !scheduler.isTerminated()) {
-                idleConnectionTask = scheduler.scheduleAtFixedRate(this::closeIdleConnections, 0, 30, TimeUnit.SECONDS);
+                idleConnectionTask = scheduler.scheduleAtFixedRate(this::closeIdleConnections, 0, idleConnectionTimeoutMillis, TimeUnit.MILLISECONDS);
                 CabinLogger.info("Idle connection cleanup task scheduled.");
             }
         } catch (Exception e) {
@@ -344,12 +350,81 @@ public class CabinServer {
             if (now - lastActive > connectionTimeoutMillis) {
                 try {
                     CabinLogger.info("Closing idle connection: " + channel.getRemoteAddress());
-                    channel.close();
+                    if (channel.isOpen()) {
+                        channel.close();
+                    }
                 } catch (IOException e) {
                     CabinLogger.error("Error closing idle connection: " + e.getMessage(), e);
                 }
                 connectionLastActive.remove(channel); // Remove from map
             }
+        }
+    }
+
+    private void shutdown() {
+        CabinLogger.info("Initiating server shutdown...");
+
+        // Close selector
+        if (selector != null && selector.isOpen()) {
+            try {
+                selector.close();
+                CabinLogger.info("Selector closed successfully.");
+            } catch (IOException e) {
+                CabinLogger.error("Error closing selector: " + e.getMessage(), e);
+            }
+        }
+
+        // Close all active connections
+        connectionLastActive.forEach((channel, lastActive) -> {
+            try {
+                if (channel != null && channel.isOpen()) {
+                    CabinLogger.info("Closed connection: " + channel.getRemoteAddress());
+                    channel.close();
+                }
+            } catch (IOException e) {
+                CabinLogger.error("Error closing channel: " + e.getMessage(), e);
+            }
+        });
+        connectionLastActive.clear(); // Ensure the map is cleared after shutdown
+
+        // Shut down worker pool
+        try {
+            workerPool.shutdown();
+            CabinLogger.info("Worker pool shut down successfully.");
+        } catch (Exception e) {
+            CabinLogger.error("Error shutting down worker pool: " + e.getMessage(), e);
+        }
+
+        // Shut down scheduler
+        try {
+            scheduler.shutdown();
+            if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+                scheduler.shutdownNow(); // Force shutdown if tasks don't terminate
+                CabinLogger.info("Scheduler forced to shut down.");
+            } else {
+                CabinLogger.info("Scheduler shut down gracefully.");
+            }
+        } catch (Exception e) {
+            CabinLogger.error("Error shutting down scheduler: " + e.getMessage(), e);
+        }
+
+        CabinLogger.info("Server shutdown complete.");
+    }
+
+
+    /**
+     * Stop the server
+     * <p>
+     * This method signals the event loop to exit and shuts down the server.
+     * The server will stop accepting new connections and close all active connections.
+     * The server will also shut down the worker pool and scheduler.
+     * This method is non-blocking and returns immediately.
+     */
+    public void stop() {
+        CabinLogger.info("Stop signal received. Shutting down server...");
+        isRunning = false; // Signal the event loop to exit
+        if(selector != null) {
+            selector.wakeup(); // Wake up the selector to process the change
         }
     }
 }

@@ -14,13 +14,19 @@ public class CabinDemoServer {
         CabinLogger.info("Starting CabinJ Framework...");
         try {
             CabinServer server = new ServerBuilder().setMaxPoolSize(200).setMaxQueueCapacity(1000).build();
-            server.use(AppRouter.Instance.registerRoutes());
-            server.use(ApiRouter.Instance.registerRoutes());
-
-            server.start();
-
+            Thread serverThread = new Thread(() -> {
+                try {
+                    server.use(AppRouter.Instance.registerRoutes());
+                    server.use(ApiRouter.Instance.registerRoutes());
+                    server.start();
+                } catch (Exception e) {
+                    CabinLogger.error("Failed to start the server", e);
+                }
+            });
+            serverThread.start();
         } catch (Exception e) {
             CabinLogger.error("Failed to start the server", e);
         }
+
     }
 }
