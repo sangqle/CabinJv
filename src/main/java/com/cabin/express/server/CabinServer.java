@@ -23,10 +23,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
  * A simple HTTP server using Java NIO.
@@ -41,6 +38,8 @@ public class CabinServer {
     private final List<Router> routers = new ArrayList<>();
 
     private final List<Middleware> globalMiddlewares = new ArrayList<>();
+    private ScheduledFuture<?> resourceLoggingTask;
+
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private final ThreadLocal<ByteBuffer> bufferPool = ThreadLocal.withInitial(() -> ByteBuffer.allocate(1024));
     private final Map<SocketChannel, Long> connectionLastActive = new ConcurrentHashMap<>();
@@ -84,7 +83,6 @@ public class CabinServer {
             int readyChannels = selector.select(connectionTimeoutMillis);
 
             if (readyChannels == 0) {
-                CabinLogger.info("No active connections");
                 performPeriodicTasks();
                 continue;
             }
@@ -139,8 +137,10 @@ public class CabinServer {
 
     private void performPeriodicTasks() {
         try {
-            scheduler.scheduleAtFixedRate(this::logResourceUsage, 0, 30, TimeUnit.SECONDS);
-            scheduler.scheduleAtFixedRate(this::closeIdleConnections, 0, 30, TimeUnit.SECONDS);
+            if ((resourceLoggingTask == null || resourceLoggingTask.isCancelled() || resourceLoggingTask.isDone()) && !scheduler.isShutdown() && !scheduler.isTerminated()) {
+                resourceLoggingTask = scheduler.scheduleAtFixedRate(this::logResourceUsage, 0, 30, TimeUnit.SECONDS);
+                CabinLogger.info("Resource logging task scheduled.");
+            }
         } catch (Exception e) {
             CabinLogger.error("Error performing periodic tasks: " + e.getMessage(), e);
         }
