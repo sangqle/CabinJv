@@ -33,7 +33,7 @@ public class CabinServer {
     private Selector selector;
     private final List<Router> routers = new ArrayList<>();
     private final List<Middleware> globalMiddlewares = new ArrayList<>();
-    private final ThreadLocal<ByteBuffer> bufferPool = ThreadLocal.withInitial(() -> ByteBuffer.allocate(1024));
+    private final BufferPool bufferPool = new BufferPool(1024, 1000);
     private final Map<SocketChannel, Long> connectionLastActive = new ConcurrentHashMap<>();
 
     // Resource logging task
@@ -230,8 +230,7 @@ public class CabinServer {
     private void handleRead(SelectionKey key) throws IOException {
         SocketChannel clientChannel = (SocketChannel) key.channel();
         try {
-
-            ByteBuffer buffer = bufferPool.get();
+            ByteBuffer buffer = bufferPool.getBuffer();
             buffer.clear();
 
             if (!clientChannel.isOpen()) {
