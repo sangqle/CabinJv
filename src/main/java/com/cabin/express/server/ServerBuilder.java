@@ -22,7 +22,7 @@ public class ServerBuilder {
     private int maxPoolSize = 200;
     private int maxQueueCapacity = 2000;
     private long timeout = 500;
-    private long idleTimeoutMiles = 60 * 1000;
+    private long idleTimeoutMiles = 10 * 1000;
 
     /**
      * Set the port number
