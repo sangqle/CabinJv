@@ -33,7 +33,6 @@ public class CabinServer {
     private Selector selector;
     private final List<Router> routers = new ArrayList<>();
     private final List<Middleware> globalMiddlewares = new ArrayList<>();
-    private final BufferPool bufferPool = new BufferPool(1024, 1000);
     private final Map<SocketChannel, Long> connectionLastActive = new ConcurrentHashMap<>();
 
     // Resource logging task
@@ -221,6 +220,11 @@ public class CabinServer {
         clientChannel.register(selector, SelectionKey.OP_READ);
     }
 
+
+    private ByteBuffer getDynamicBuffer(int expectedSize) {
+        return ByteBuffer.allocate(Math.max(expectedSize, 1024)); // Minimum size of 1024 bytes
+    }
+
     /**
      * Handles reading data from a client connection.
      *
@@ -229,8 +233,14 @@ public class CabinServer {
      */
     private void handleRead(SelectionKey key) throws IOException {
         SocketChannel clientChannel = (SocketChannel) key.channel();
+        ByteBuffer buffer = null;
         try {
-            ByteBuffer buffer = bufferPool.getBuffer();
+            int expectedSize = Math.max(1024, clientChannel.socket().getReceiveBufferSize());
+            if (expectedSize > 1024 * 8) {
+                buffer = getDynamicBuffer(expectedSize);
+            } else {
+                buffer = ByteBuffer.allocate(1024);
+            }
             buffer.clear();
 
             if (!clientChannel.isOpen()) {

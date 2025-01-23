@@ -35,7 +35,4 @@ public class BufferPool {
         }
     }
 
-    private ByteBuffer getDynamicBuffer(int expectedSize) {
-        return ByteBuffer.allocate(Math.max(expectedSize, 1024)); // Minimum size of 1024 bytes
-    }
 }
