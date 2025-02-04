@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'com.cabin.express'
-version = '1.0-SNAPSHOT'
+version = '1.0.1'
 
 repositories {
     mavenCentral()
@@ -11,7 +11,7 @@ repositories {
 
 ext {
     libDirName = 'lib'
-    mainClassName = project.hasProperty("mainClass") ? project.getProperty("mainClass") : 'com.cabin.express.zdemo.CabinDemoServer'
+    mainClassName = project.hasProperty("mainClass") ? project.getProperty("mainClass") : ''
     gradleVersion = gradleVersion = gradle.gradleVersion
 }
 
@@ -24,12 +24,6 @@ dependencies {
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     implementation 'com.google.code.gson:gson:2.10.1'
-
-    // playground
-    implementation 'mysql:mysql-connector-java:8.0.33'
-    implementation 'com.zaxxer:HikariCP:5.0.1'
-    // Hibernate
-    implementation 'org.hibernate:hibernate-core:5.6.4.Final'
 }
 
 test {
@@ -56,8 +50,11 @@ jar {
                 'Main-Class': mainClassName // Ensure `mainClassName` is set in your Gradle file
         )
     }
-    // Optional: Configure the base name for the JAR file
-    if (project.hasProperty('jarBaseName')) {
-        archiveBaseName.set(project.getProperty('jarBaseName')) // Gradle 7.x+ syntax
+    archiveBaseName.set('cabin')
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
     }
 }
