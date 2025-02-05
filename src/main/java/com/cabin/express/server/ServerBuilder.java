@@ -23,6 +23,7 @@ public class ServerBuilder {
     private int maxQueueCapacity = 2000;
     private long timeout = 500;
     private long idleTimeoutMiles = 10 * 1000;
+    private boolean isLoggingMetrics = false;
 
     /**
      * Set the port number
@@ -97,11 +98,22 @@ public class ServerBuilder {
     }
 
     /**
+     * Set whether to log metrics
+     *
+     * @param isLoggingMetrics whether to log metrics
+     * @return the server builder
+     */
+    public ServerBuilder enableLogMetrics(boolean isLoggingMetrics) {
+        this.isLoggingMetrics = isLoggingMetrics;
+        return this;
+    }
+
+    /**
      * Build the CabinServer instance
      *
      * @return the CabinServer instance
      */
     public CabinServer build() {
-        return new CabinServer(port, defaultPoolSize, maxPoolSize, maxQueueCapacity, timeout, idleTimeoutMiles);
+        return new CabinServer(port, defaultPoolSize, maxPoolSize, maxQueueCapacity, timeout, idleTimeoutMiles, isLoggingMetrics);
     }
 }

@@ -62,7 +62,7 @@ public class CabinServer {
      * @param maxPoolSize      the maximum number of threads in the thread pool
      * @param maxQueueCapacity the maximum queue capacity
      */
-    protected CabinServer(int port, int defaultPoolSize, int maxPoolSize, int maxQueueCapacity, long connectionTimeoutMillis, long idleConnectionTimeoutSeconds) {
+    protected CabinServer(int port, int defaultPoolSize, int maxPoolSize, int maxQueueCapacity, long connectionTimeoutMillis, long idleConnectionTimeoutSeconds, boolean isLogMetrics) {
         this.port = port;
         this.workerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
         this.connectionTimeoutMillis = connectionTimeoutMillis;
@@ -70,6 +70,7 @@ public class CabinServer {
 
         this.readWorkerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
         this.writeWorkerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
+        this.isLogMetrics = isLogMetrics;
     }
 
     /**
@@ -469,14 +470,5 @@ public class CabinServer {
         if (selector != null) {
             selector.wakeup(); // Wake up the selector to process the change
         }
-    }
-
-    /**
-     * Enable or disable logging of server metrics
-     *
-     * @param enable true to enable logging, false to disable
-     */
-    public void enableMetricsLogging(boolean enable) {
-        isLogMetrics = enable;
     }
 }
