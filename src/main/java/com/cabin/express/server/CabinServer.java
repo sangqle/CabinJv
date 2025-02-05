@@ -51,6 +51,8 @@ public class CabinServer {
 
     private volatile boolean isRunning = true; // Flag to control the event loop
 
+    private volatile boolean isLogMetrics = false; // Flag to control the event loop
+
     /**
      * Creates a new server with the specified port number, default pool size,
      * maximum pool size, and maximum queue capacity.
@@ -85,7 +87,9 @@ public class CabinServer {
             int readyChannels = selector.select(connectionTimeoutMillis);
 
             if (readyChannels == 0) {
-                performPeriodicTasks();
+                if (isLogMetrics) {
+                    performPeriodicTasks();
+                }
                 continue;
             }
 
@@ -465,5 +469,14 @@ public class CabinServer {
         if (selector != null) {
             selector.wakeup(); // Wake up the selector to process the change
         }
+    }
+
+    /**
+     * Enable or disable logging of server metrics
+     *
+     * @param enable true to enable logging, false to disable
+     */
+    public void enableMetricsLogging(boolean enable) {
+        isLogMetrics = enable;
     }
 }
