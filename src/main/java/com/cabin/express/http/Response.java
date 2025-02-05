@@ -115,7 +115,7 @@ public class Response {
      * @param content The object to write as JSON.
      * @throws IOException if an error occurs while writing the JSON.
      */
-    public void writeJsonBody(Object content) throws IOException {
+    public void writeBody(Object content) throws IOException {
         setHeader("Content-Type", "application/json");
         body.append(gson.toJson(content));
 
