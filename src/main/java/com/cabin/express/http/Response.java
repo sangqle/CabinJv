@@ -201,11 +201,6 @@ public class Response {
     }
 
     private String getStatusMessage(int statusCode) {
-        return switch (statusCode) {
-            case 200 -> "OK";
-            case 404 -> "Not Found";
-            case 500 -> "Internal Server Error";
-            default -> "Unknown";
-        };
+        return HttpStatusCode.getStatusMessage(statusCode);
     }
 }

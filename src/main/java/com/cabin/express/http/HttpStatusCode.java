@@ -46,7 +46,7 @@ public class HttpStatusCode {
             case BAD_GATEWAY -> "Bad Gateway";
             case SERVICE_UNAVAILABLE -> "Service Unavailable";
             case GATEWAY_TIMEOUT -> "Gateway Timeout";
-            default -> "Unknown Status Code";
+            default -> "Unknown";
         };
     }
 }
