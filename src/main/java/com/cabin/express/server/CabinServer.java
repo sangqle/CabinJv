@@ -42,7 +42,6 @@ public class CabinServer {
 
     // Server configuration
     private final int port;
-    private final CabinWorkerPool workerPool;
     private final CabinWorkerPool readWorkerPool;
     private final CabinWorkerPool writeWorkerPool;
 
@@ -64,7 +63,6 @@ public class CabinServer {
      */
     protected CabinServer(int port, int defaultPoolSize, int maxPoolSize, int maxQueueCapacity, long connectionTimeoutMillis, long idleConnectionTimeoutSeconds, boolean isLogMetrics) {
         this.port = port;
-        this.workerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
         this.connectionTimeoutMillis = connectionTimeoutMillis;
         this.idleConnectionTimeoutMillis = idleConnectionTimeoutSeconds;
 
@@ -173,10 +171,14 @@ public class CabinServer {
 
     private void performPeriodicTasks() {
         try {
+            Map<String, CabinWorkerPool> workerPools = new HashMap<>();
+            workerPools.put("WriteCabinWorkerPool", writeWorkerPool);
+            workerPools.put("ReadCabinWorkerPool", readWorkerPool);
+
             // Schedule resource logging task if not already scheduled
             if ((resourceLoggingTask == null || resourceLoggingTask.isCancelled() || resourceLoggingTask.isDone()) && !scheduler.isShutdown() && !scheduler.isTerminated()) {
                 resourceLoggingTask = scheduler.scheduleAtFixedRate(() -> {
-                    Monitor.Instance.logResourceUsage(workerPool);
+                    Monitor.Instance.logResourceUsage(workerPools);
                 }, 0, 30, TimeUnit.SECONDS);
                 CabinLogger.info("Resource logging task scheduled.");
             }
@@ -433,7 +435,8 @@ public class CabinServer {
 
         // Shut down worker pool
         try {
-            workerPool.shutdown();
+            readWorkerPool.shutdown();
+            writeWorkerPool.shutdown();
             CabinLogger.info("Worker pool shut down successfully.");
         } catch (Exception e) {
             CabinLogger.error("Error shutting down worker pool: " + e.getMessage(), e);

@@ -7,6 +7,7 @@ import com.sun.management.OperatingSystemMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
+import java.util.Map;
 
 public class Monitor {
 
@@ -16,7 +17,7 @@ public class Monitor {
     private long peakNonHeapUsed = 0;
     private long peakUsedPhysicalMemorySize = 0;
 
-    public void logResourceUsage(CabinWorkerPool workerPool) {
+    public void logResourceUsage(Map<String, CabinWorkerPool> workerPools) {
         OperatingSystemMXBean osBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
 
         MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
@@ -37,7 +38,41 @@ public class Monitor {
         peakNonHeapUsed = Math.max(peakNonHeapUsed, nonHeapUsed);
         peakUsedPhysicalMemorySize = Math.max(peakUsedPhysicalMemorySize, usedPhysicalMemorySize);
 
-        CabinLogger.info("Resource Usage ----------------------------------------------------------");
-        CabinLogger.info("\n" + "+-------------------------- SYSTEM METRICS ---------------------------+\n" + "| Metric                     | Value                                   \n" + "+----------------------------+-----------------------------------------+\n" + String.format("| Process CPU Load           | %.2f%%                                 \n", processCpuLoad) + String.format("| System CPU Load            | %.2f%%                                 \n", systemCpuLoad) + String.format("| Total Physical Memory      | %,d bytes                              \n", totalPhysicalMemorySize) + String.format("| Used Physical Memory       | %,d bytes                              \n", usedPhysicalMemorySize) + String.format("| Free Physical Memory       | %,d bytes                              \n", freePhysicalMemorySize) + "+----------------------------+-----------------------------------------+\n" + "| MEMORY USAGE                                                      \n" + "+----------------------------+-----------------------------------------+\n" + String.format("| Heap Memory Used           | %,d bytes                              \n", heapUsed) + String.format("| Heap Memory Max            | %,d bytes                              \n", heapMax) + String.format("| Non-Heap Memory Used       | %,d bytes                              \n", nonHeapUsed) + String.format("| Peak Heap Memory Used      | %,d bytes                              \n", peakHeapUsed) + String.format("| Peak Non-Heap Memory Used  | %,d bytes                              \n", peakNonHeapUsed) + String.format("| Peak Used Physical Memory  | %,d bytes                              \n", peakUsedPhysicalMemorySize) + "+----------------------------+-----------------------------------------+\n" + "| WORKER POOL METRICS                                                 \n" + "+----------------------------+-----------------------------------------+\n" + String.format("| Worker Pool Size           | %d                                    \n", workerPool.getPoolSize()) + String.format("| Active Threads             | %d                                    \n", workerPool.getActiveThreadCount()) + String.format("| Pending Tasks              | %d                                    \n", workerPool.getPendingTaskCount()) + String.format("| Largest Pool Size          | %d                                    \n", workerPool.getLargestPoolSize()) + "+----------------------------+-----------------------------------------+\n");
+        StringBuilder logBuilder = new StringBuilder();
+        logBuilder.append("Resource Usage ----------------------------------------------------------\n");
+        logBuilder.append("+-------------------------- SYSTEM METRICS ---------------------------+\n");
+        logBuilder.append(String.format("| Process CPU Load           | %.2f%%                                 \n", processCpuLoad));
+        logBuilder.append(String.format("| System CPU Load            | %.2f%%                                 \n", systemCpuLoad));
+        logBuilder.append(String.format("| Total Physical Memory      | %,d bytes                              \n", totalPhysicalMemorySize));
+        logBuilder.append(String.format("| Used Physical Memory       | %,d bytes                              \n", usedPhysicalMemorySize));
+        logBuilder.append(String.format("| Free Physical Memory       | %,d bytes                              \n", freePhysicalMemorySize));
+        logBuilder.append("+----------------------------+-----------------------------------------+\n");
+        logBuilder.append("| MEMORY USAGE                                                      \n");
+        logBuilder.append("+----------------------------+-----------------------------------------+\n");
+        logBuilder.append(String.format("| Heap Memory Used           | %,d bytes                              \n", heapUsed));
+        logBuilder.append(String.format("| Heap Memory Max            | %,d bytes                              \n", heapMax));
+        logBuilder.append(String.format("| Non-Heap Memory Used       | %,d bytes                              \n", nonHeapUsed));
+        logBuilder.append(String.format("| Peak Heap Memory Used      | %,d bytes                              \n", peakHeapUsed));
+        logBuilder.append(String.format("| Peak Non-Heap Memory Used  | %,d bytes                              \n", peakNonHeapUsed));
+        logBuilder.append(String.format("| Peak Used Physical Memory  | %,d bytes                              \n", peakUsedPhysicalMemorySize));
+        logBuilder.append("+----------------------------+-----------------------------------------+\n");
+
+        // Log each worker pool separately
+        logBuilder.append("| WORKER POOL METRICS                                                 \n");
+        logBuilder.append("+----------------------------+-----------------------------------------+\n");
+
+        for (Map.Entry<String, CabinWorkerPool> entry : workerPools.entrySet()) {
+            String poolName = entry.getKey();
+            CabinWorkerPool pool = entry.getValue();
+
+            logBuilder.append(String.format("| Worker Pool Name           | %s                                    \n", poolName));
+            logBuilder.append(String.format("| Worker Pool Size           | %d                                    \n", pool.getPoolSize()));
+            logBuilder.append(String.format("| Active Threads             | %d                                    \n", pool.getActiveThreadCount()));
+            logBuilder.append(String.format("| Pending Tasks              | %d                                    \n", pool.getPendingTaskCount()));
+            logBuilder.append(String.format("| Largest Pool Size          | %d                                    \n", pool.getLargestPoolSize()));
+            logBuilder.append("+----------------------------+-----------------------------------------+\n");
+        }
+
+        CabinLogger.info(logBuilder.toString());
     }
 }
