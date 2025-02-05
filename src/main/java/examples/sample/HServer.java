@@ -16,8 +16,7 @@ public class HServer {
         Router router = new Router();
         router.get("/", (req, res) -> {
             logger.info("Request received: {}", req.getPath());
-            res.writeBody("Hello World");
-            throw new RuntimeException("Oops");
+            res.send("Hello world");
         });
         server.use(router);
         server.start();
