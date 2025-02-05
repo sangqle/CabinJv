@@ -1,4 +1,4 @@
-package examples.datasource;
+package examples.sample;
 
 import com.cabin.express.router.Router;
 import com.cabin.express.server.CabinServer;
