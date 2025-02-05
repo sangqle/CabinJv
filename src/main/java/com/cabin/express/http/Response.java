@@ -184,6 +184,22 @@ public class Response {
         }
     }
 
+    /**
+     * Write specified object as JSON to the response body.
+     *
+     * @param content content content content content content content content
+     * @return
+     */
+    public void send(Object content) {
+        try {
+            writeBody(content);
+            send();
+        } catch (IOException e) {
+            CabinLogger.error("Error sending response: " + e.getMessage(), e);
+        }
+        send();
+    }
+
     private String getStatusMessage(int statusCode) {
         return switch (statusCode) {
             case 200 -> "OK";
