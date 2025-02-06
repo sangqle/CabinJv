@@ -41,3 +41,4 @@ bin/
 .DS_Store
 
 /logs/
+hs_err_*
