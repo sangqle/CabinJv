@@ -2,9 +2,7 @@ package com.cabin.express.http;
 
 import com.google.gson.Gson;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -12,6 +10,7 @@ import java.util.Map;
 
 /**
  * Represents an HTTP request.
+ *
  * @author Sang Le
  * @version 1.0.0
  * @since 2024-12-24
@@ -24,13 +23,14 @@ public class Request {
     private Map<String, String> queryParams = new HashMap<>();
     private Map<String, String> pathParams = new HashMap<>();
     private Map<String, String> headers = new HashMap<>();
+    private Map<String, String> formFields = new HashMap<>();
+    private Map<String, UploadedFile> uploadedFiles = new HashMap<>();
 
     private static final Gson gson = new Gson();
 
 
     public Request(InputStream inputStream) throws Exception {
         parseRequest(inputStream);
-        parseBodyAsJson();
     }
 
     public String getMethod() {
@@ -69,35 +69,134 @@ public class Request {
         this.pathParams = pathParams;
     }
 
-    private void parseRequest(InputStream inputStream) throws Exception {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-        String requestLine = reader.readLine();
 
+    private void parseRequest(InputStream inputStream) throws Exception {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.ISO_8859_1));
+
+        // Read request line
+        String requestLine = reader.readLine();
         if (requestLine == null || requestLine.isEmpty()) {
             throw new IllegalArgumentException("Malformed HTTP request: Missing request line");
         }
 
         String[] requestParts = requestLine.split(" ");
-        method = requestParts[0];
-        String fullPath = requestParts[1];
-        parsePathAndQuery(fullPath);
+        if (requestParts.length < 2) {
+            throw new IllegalArgumentException("Malformed HTTP request: Incomplete request line");
+        }
 
+        method = requestParts[0];
+        path = requestParts[1];
+
+        // Read headers
         String headerLine;
         while ((headerLine = reader.readLine()) != null && !headerLine.isEmpty()) {
             String[] headerParts = headerLine.split(": ", 2);
-            headers.put(headerParts[0], headerParts[1]);
+            if (headerParts.length == 2) {
+                headers.put(headerParts[0].trim(), headerParts[1].trim());
+            }
         }
 
+        // Handle body if present
         if ("POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method)) {
-            String contentLength = headers.get("Content-Length");
-            if (contentLength != null) {
-                int length = Integer.parseInt(contentLength);
-                char[] bodyChars = new char[length];
-                reader.read(bodyChars);
-                body = new String(bodyChars);
+            String contentType = headers.getOrDefault("Content-Type", "").toLowerCase();
+            if (contentType.startsWith("multipart/form-data")) {
+                parseMultipart(inputStream, contentType);
+            } else {
+                parseBody(reader);
             }
         }
     }
+
+
+    private void parseBody(BufferedReader reader) throws IOException {
+        String contentLengthHeader = headers.get("Content-Length");
+        if (contentLengthHeader != null) {
+            try {
+                int contentLength = Integer.parseInt(contentLengthHeader);
+                char[] bodyChars = new char[contentLength];
+                reader.read(bodyChars);
+                body = new String(bodyChars);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid Content-Length header");
+            }
+        }
+    }
+
+    private void parseMultipart(InputStream inputStream, String contentType) throws IOException {
+        String boundary = "--" + contentType.split("boundary=")[1];
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.ISO_8859_1));
+        String line;
+        boolean inPart = false;
+        String fieldName = null;
+        String fileName = null;
+        String contentTypePart = null;
+        ByteArrayOutputStream fileBuffer = new ByteArrayOutputStream();
+
+        while ((line = reader.readLine()) != null) {
+            if (line.startsWith(boundary)) {
+                // End of previous part
+                if (inPart && fileName != null) {
+                    // Store the file
+                    uploadedFiles.put(fieldName, new UploadedFile(fileName, contentTypePart, fileBuffer.toByteArray()));
+                    fileBuffer.reset();
+                }
+                inPart = false;
+                fieldName = null;
+                fileName = null;
+                contentTypePart = null;
+            } else if (line.startsWith("Content-Disposition:")) {
+                String[] parts = line.split(";");
+                for (String part : parts) {
+                    if (part.trim().startsWith("name=")) {
+                        fieldName = part.split("=")[1].replace("\"", "");
+                    } else if (part.trim().startsWith("filename=")) {
+                        fileName = part.split("=")[1].replace("\"", "");
+                    }
+                }
+            } else if (line.startsWith("Content-Type:")) {
+                contentTypePart = line.split(": ")[1];
+            } else if (line.isEmpty() && fileName != null) {
+                // Start of file content
+                inPart = true;
+            } else if (inPart) {
+                // Write file content to buffer
+                fileBuffer.write(line.getBytes(StandardCharsets.ISO_8859_1));
+                fileBuffer.write("\r\n".getBytes(StandardCharsets.ISO_8859_1));
+            }
+        }
+    }
+
+    private String extractField(String contentDisposition, String key) {
+        String[] parts = contentDisposition.split(";");
+        for (String part : parts) {
+            if (part.trim().startsWith(key + "=")) {
+                return part.split("=")[1].replace("\"", "").trim();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get uploaded file as an object
+     *
+     * @param fieldName Name of the field
+     * @return UploadedFile containing filename, content type, and byte array data
+     */
+    public UploadedFile getUploadedFile(String fieldName) {
+        return uploadedFiles.get(fieldName);
+    }
+
+    /**
+     * Get form field value
+     *
+     * @param fieldName Name of the field
+     * @return Value of the form field
+     */
+    public String getFormField(String fieldName) {
+        return formFields.get(fieldName);
+    }
+
 
     private void parsePathAndQuery(String fullPath) throws Exception {
         String[] parts = fullPath.split("\\?", 2);

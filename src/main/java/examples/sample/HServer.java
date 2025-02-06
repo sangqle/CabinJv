@@ -25,6 +25,7 @@ public class HServer {
             res.send(json);
         });
         server.use(router);
+        server.use(AppRouter.router);
         server.start();
         logger.info("Server started at http://localhost:8080");
     }
