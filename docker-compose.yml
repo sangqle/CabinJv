@@ -9,7 +9,7 @@ services:
       - "8080:8080"
     environment:
       - JAVA_OPTS=-Xmx512m
-    command: ["java", "-jar", "CabinJ-1.0-SNAPSHOT.jar"]
+    command: ["java", "-jar", "cabin-1.0.1.jar"]
     volumes:
       - gradle-cache:/root/.gradle
 
