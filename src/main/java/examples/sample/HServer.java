@@ -1,9 +1,9 @@
 package examples.sample;
 
-import com.cabin.express.http.HttpStatusCode;
 import com.cabin.express.router.Router;
 import com.cabin.express.server.CabinServer;
 import com.cabin.express.server.ServerBuilder;
+import com.google.gson.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,9 +20,9 @@ public class HServer {
 
         Router router = new Router();
         router.get("/", (req, res) -> {
-            logger.info("Request received: {}", req.getPath());
-            res.setStatusCode(HttpStatusCode.CREATED);
-            res.send("Hello world");
+            JsonObject json = new JsonObject();
+            json.addProperty("message", "Hello, World!");
+            res.send(json);
         });
         server.use(router);
         server.start();
