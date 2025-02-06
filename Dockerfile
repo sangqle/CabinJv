@@ -29,11 +29,11 @@ FROM openjdk:17-jdk-slim
 WORKDIR /app
 
 # Copy the built application JAR and dependencies from the build stage
-COPY --from=build /app/build/libs/CabinJ-1.0-SNAPSHOT.jar /app/
+COPY --from=build /app/build/libs/cabin-1.0.1.jar /app/
 COPY --from=build /app/build/libs/libs /app/libs
 
 # Expose the port the application runs on
 EXPOSE 8080
 
 # Run the application
-CMD ["java", "-cp", "CabinJ-1.0-SNAPSHOT.jar:libs/*", "com.cabin.Main"]
+CMD ["java", "-cp", "cabin-1.0.1.jar:libs/*", "com.cabin.Main"]

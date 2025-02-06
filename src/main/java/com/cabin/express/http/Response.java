@@ -117,7 +117,7 @@ public class Response {
      */
     public void writeBody(Object content) throws IOException {
         setHeader("Content-Type", "application/json");
-        body.append(gson.toJson(content));
+        body.append(content != null ? gson.toJson(content) : "");
 
     }
 
@@ -193,7 +193,6 @@ public class Response {
     public void send(Object content) {
         try {
             writeBody(content);
-            send();
         } catch (IOException e) {
             CabinLogger.error("Error sending response: " + e.getMessage(), e);
         }

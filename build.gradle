@@ -11,7 +11,7 @@ repositories {
 
 ext {
     libDirName = 'lib'
-    mainClassName = project.hasProperty("mainClass") ? project.getProperty("mainClass") : ''
+    mainClassName = project.hasProperty("mainClass") ? project.getProperty("mainClass") : ' examples.sample.HServer'
     gradleVersion = gradleVersion = gradle.gradleVersion
 }
 
