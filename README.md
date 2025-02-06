@@ -15,8 +15,7 @@ public class HServerSample {
         CabinServer server = new ServerBuilder().setPort(8080).build();
         Router router = new Router();
         router.get("/", (req, res) -> {
-            res.writeBody("Hello World");
-            res.send();
+            res.send("Hello World");
         });
         server.use(router);
         server.start();
