@@ -3,81 +3,83 @@ package com.cabin.express.http;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.regex.*;
 
 public class MultipartParser {
     private final Map<String, String> formFields = new HashMap<>();
     private final Map<String, UploadedFile> uploadedFiles = new HashMap<>();
+    private final String boundary;
 
     public MultipartParser(byte[] requestData, String contentType) throws Exception {
-        parseMultipart(requestData, contentType);
-    }
-
-    private void parseMultipart(byte[] requestData, String contentType) throws Exception {
-        String boundary = extractBoundary(contentType);
-        if (boundary == null) {
+        this.boundary = extractBoundary(contentType);
+        if (this.boundary == null) {
             throw new IllegalArgumentException("Invalid multipart request: Missing boundary");
         }
+        parseMultipart(new ByteArrayInputStream(requestData));
+    }
 
-        String requestString = new String(requestData, StandardCharsets.UTF_8);
-        String[] parts = requestString.split("--" + boundary);
+    private void parseMultipart(InputStream inputStream) throws Exception {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.ISO_8859_1));
+        String line;
 
-        for (String part : parts) {
-            if (part.equals("--") || part.trim().isEmpty()) {
-                continue; // Ignore boundary markers
+        while ((line = reader.readLine()) != null) {
+            if (line.startsWith("--" + boundary)) {
+                parsePart(reader, inputStream);
             }
-            parsePart(part.trim().getBytes(StandardCharsets.UTF_8));
         }
     }
 
-    private void parsePart(byte[] partBytes) throws IOException {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(partBytes), StandardCharsets.UTF_8));
-
+    private void parsePart(BufferedReader reader, InputStream inputStream) throws IOException {
         String contentDisposition = null;
         String contentType = null;
         String fieldName = null;
         String fileName = null;
-        ByteArrayOutputStream fileContent = new ByteArrayOutputStream();
 
-        // Read headers
+        ByteArrayOutputStream fileContent = new ByteArrayOutputStream();
+        boolean isFile = false;
+
+        // **1. Read Headers**
         String line;
         while ((line = reader.readLine()) != null && !line.isEmpty()) {
             if (line.startsWith("Content-Disposition:")) {
                 contentDisposition = line;
                 fieldName = extractFieldName(contentDisposition);
                 fileName = extractFileName(contentDisposition);
+                if (fileName != null) isFile = true;
             } else if (line.startsWith("Content-Type:")) {
                 contentType = line.split(": ")[1].trim();
             }
         }
 
-        // Read body content
-        while ((line = reader.readLine()) != null) {
-            fileContent.write(line.getBytes(StandardCharsets.UTF_8));
-            fileContent.write("\r\n".getBytes(StandardCharsets.UTF_8));
+        // **2. Read the Body as Raw Binary Data**
+        InputStream rawInput = new BufferedInputStream(inputStream);
+        byte[] buffer = new byte[4096]; // Use a buffer to efficiently read large files
+        int bytesRead;
+        while ((bytesRead = rawInput.read(buffer)) != -1) {
+            if (isBoundary(buffer, bytesRead)) {
+                break; // Stop reading at the next boundary
+            }
+            fileContent.write(buffer, 0, bytesRead);
         }
 
         byte[] contentBytes = fileContent.toByteArray();
-        String contentString = new String(contentBytes, StandardCharsets.UTF_8).trim();
 
-        // Determine if it's a file or form field
-        if (fileName != null) {
+        // **3. Store Form Fields or Files**
+        if (isFile) {
             uploadedFiles.put(fieldName, new UploadedFile(fileName, contentType, contentBytes));
-        } else if (fieldName != null) {
-            formFields.put(fieldName, contentString);
+        } else {
+            formFields.put(fieldName, new String(contentBytes, StandardCharsets.UTF_8).trim());
         }
     }
 
+    private boolean isBoundary(byte[] buffer, int bytesRead) {
+        String data = new String(buffer, 0, bytesRead, StandardCharsets.ISO_8859_1);
+        return data.startsWith("--" + boundary);
+    }
+
     private String extractBoundary(String contentType) {
-        String[] parts = contentType.split(";");
-        for (String part : parts) {
-            part = part.trim();
-            if (part.startsWith("boundary=")) {
-                return part.substring("boundary=".length());
-            }
-        }
-        return null;
+        Matcher matcher = Pattern.compile("boundary=([^;]+)").matcher(contentType);
+        return matcher.find() ? matcher.group(1) : null;
     }
 
     private String extractFieldName(String contentDisposition) {

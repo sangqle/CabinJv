@@ -6,6 +6,7 @@ import com.google.gson.JsonSyntaxException;
 import java.io.*;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -72,49 +73,58 @@ public class Request {
 
     private void parseRequest(ByteArrayOutputStream outputStream) throws Exception {
         try {
-            byte[] data = outputStream.toByteArray();
-            String requestData = new String(data, StandardCharsets.UTF_8);
-            BufferedReader reader = new BufferedReader(new StringReader(requestData));
+            byte[] requestDataBytes = outputStream.toByteArray();
+            InputStream inputStream = new ByteArrayInputStream(requestDataBytes);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.ISO_8859_1));
 
-            // **1. Parse the Request Line**
+            // **1️⃣ Read & Parse the Request Line**
             String requestLine = reader.readLine();
             if (requestLine == null || requestLine.isEmpty()) {
-                throw new IllegalArgumentException("Invalid HTTP request");
+                throw new IllegalArgumentException("Invalid HTTP request: Missing request line");
             }
 
             String[] requestParts = requestLine.split(" ");
             if (requestParts.length < 2) {
-                throw new IllegalArgumentException("Malformed request line");
+                throw new IllegalArgumentException("Malformed request line: " + requestLine);
             }
 
             method = requestParts[0];
             String fullPath = requestParts[1];
-
-            // **2. Parse Query Parameters**
             parsePathAndQuery(fullPath);
-            path = fullPath.split("\\?")[0]; // Remove query parameters from path
 
-            // **3. Parse Headers**
+            // **2️⃣ Read & Parse Headers**
+            parseHeaders(reader);
 
-            // **4. Read Body**
-            StringBuilder bodyBuilder = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                bodyBuilder.append(line).append("\r\n");
-            }
-            body = bodyBuilder.toString().trim();
+            System.err.println("Headers: " + headers); // Debugging output
 
-            // **5. Parse Request Body Based on Content-Type**
-            if (headers.containsKey("content-type")) {
-                String contentType = headers.get("content-type");
-                if (contentType.startsWith("application/json")) {
-                    parseJsonBody();
-                } else if (contentType.startsWith("multipart/form-data")) {
-                    parseMultipartBody(data, contentType);
-                } else if (contentType.startsWith("application/x-www-form-urlencoded")) {
-                    parseFormUrlEncodedBody();
+            // **3️⃣ Read & Parse Body (if any)**
+            if (headers.containsKey("content-length")) {
+                int contentLength = Integer.parseInt(headers.get("content-length"));
+                byte[] bodyBytes = new byte[contentLength];
+
+                // Read the exact content-length bytes from the stream
+                int bytesRead = inputStream.read(bodyBytes);
+                if (bytesRead != contentLength) {
+                    throw new IOException("Unexpected end of request body");
+                }
+
+                // **4️⃣ Process Body Based on Content-Type**
+                if (headers.containsKey("content-type")) {
+                    String contentType = headers.get("content-type");
+                    if (contentType.contains("application/x-www-form-urlencoded")) {
+                        body = new String(bodyBytes, StandardCharsets.UTF_8);
+                        parseFormUrlEncodedBody();
+                    } else if (contentType.contains("multipart/form-data")) {
+                        parseMultipartBody(bodyBytes, contentType);
+                    } else if (contentType.contains("application/json")) {
+                        body = new String(bodyBytes, StandardCharsets.UTF_8);
+                        parseJsonBody();
+                    } else {
+                        body = new String(bodyBytes, StandardCharsets.UTF_8);
+                    }
                 }
             }
+
         } catch (Exception ex) {
             throw new Exception("Failed to parse request: " + ex.getMessage(), ex);
         }
@@ -326,5 +336,21 @@ public class Request {
         }
     }
 
+    private void parseHeaders(BufferedReader reader) throws IOException {
+        String line;
+
+        while ((line = reader.readLine()) != null) {
+            if (line.isEmpty()) {
+                break; // End of headers (empty line)
+            }
+
+            int colonIndex = line.indexOf(":");
+            if (colonIndex > 0) {
+                String key = line.substring(0, colonIndex).trim().toLowerCase();
+                String value = line.substring(colonIndex + 1).trim();
+                headers.put(key, value);
+            }
+        }
+    }
 }
 

@@ -26,7 +26,7 @@ public class AppRouter {
             }
             json.addProperty("fileName", file.getFileName());
             json.addProperty("contentType", file.getContentType());
-            json.addProperty("fileSize", file.getFileData().length);
+            json.addProperty("fileSize", file.getSize());
             res.send(json);
         });
     }
