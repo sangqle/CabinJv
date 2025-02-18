@@ -105,6 +105,7 @@ public class Request {
                 // Read the exact content-length bytes from the stream
                 int bytesRead = inputStream.read(bodyBytes);
                 if (bytesRead != contentLength) {
+                    System.err.println("Expected " + contentLength + " bytes, but read " + bytesRead + " bytes");
                     throw new IOException("Unexpected end of request body");
                 }
 

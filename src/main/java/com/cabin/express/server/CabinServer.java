@@ -20,6 +20,8 @@ import java.nio.channels.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * A simple HTTP server using Java NIO.
@@ -247,7 +249,7 @@ public class CabinServer {
      */
     private void handleRead(SelectionKey key) throws IOException {
         SocketChannel clientChannel = (SocketChannel) key.channel();
-        ByteBuffer buffer = ByteBuffer.allocate(8192); // Default buffer size for efficiency
+        ByteBuffer buffer = ByteBuffer.allocate(8192); // Reuse buffer size
 
         try {
             if (!clientChannel.isOpen()) {
@@ -255,37 +257,44 @@ public class CabinServer {
                 return;
             }
 
-            int bytesRead;
+            // Persistent storage for request data
             ByteArrayOutputStream requestBuffer = new ByteArrayOutputStream();
+            int bytesRead;
 
-            // Read data in chunks to ensure the full request is received
+            // Read data in chunks and accumulate
             while ((bytesRead = clientChannel.read(buffer)) > 0) {
                 buffer.flip();
-                byte[] chunk = new byte[buffer.remaining()];
-                buffer.get(chunk);
-                requestBuffer.write(chunk);
+                requestBuffer.write(buffer.array(), 0, buffer.remaining());
                 buffer.clear();
             }
 
-            // If client closed connection, log and exit
+            // If client disconnects, check if full request is received
             if (bytesRead == -1) {
                 CabinLogger.info("Client closed connection: " + clientChannel.getRemoteAddress());
+
+                // Check if we have enough data to process a request
+                if (requestBuffer.size() > 0) {
+                    writeWorkerPool.submitTask(() -> handleClientRequest(clientChannel, requestBuffer));
+                }
+
                 closeChannelAndCancelKey(clientChannel, key);
                 return;
             }
 
-            // Enqueue task to process the full request
-            writeWorkerPool.submitTask(() -> handleClientRequest(clientChannel, requestBuffer));
-        } catch (SocketException e) {
-            handleSocketException(clientChannel, key, e);
+            // Ensure we have received a full HTTP request before processing
+            if (isRequestComplete(requestBuffer.toByteArray())) {
+                writeWorkerPool.submitTask(() -> handleClientRequest(clientChannel, requestBuffer));
+            } else {
+                // Wait for more data before processing
+                CabinLogger.info("Waiting for more data from: " + clientChannel.getRemoteAddress());
+            }
+
         } catch (IOException e) {
-            CabinLogger.error("Error handling read event: " + e.getMessage(), e);
-            closeChannelAndCancelKey(clientChannel, key);
-        } catch (Throwable e) {
-            GlobalExceptionHandler.handleException(e, new Response(clientChannel));
+            CabinLogger.error("Error reading from client: " + e.getMessage(), e);
             closeChannelAndCancelKey(clientChannel, key);
         }
     }
+
 
     private void handleClientRequest(SocketChannel clientChannel, ByteArrayOutputStream byteArrayOutputStream) {
         try {
@@ -315,6 +324,31 @@ public class CabinServer {
             sendInternalServerError(clientChannel);
         }
     }
+
+    private boolean isRequestComplete(byte[] requestData) {
+        String requestString = new String(requestData, StandardCharsets.ISO_8859_1);
+
+        // **Check if request has full headers**
+        if (!requestString.contains("\r\n\r\n")) {
+            return false; // Headers are incomplete
+        }
+
+        // **Check if Content-Length is fully received**
+        Matcher contentLengthMatcher = Pattern.compile("Content-Length: (\\d+)").matcher(requestString);
+        if (contentLengthMatcher.find()) {
+            int contentLength = Integer.parseInt(contentLengthMatcher.group(1));
+            int headerEndIndex = requestString.indexOf("\r\n\r\n") + 4;
+            return requestData.length >= headerEndIndex + contentLength;
+        }
+
+        // **Check if request is chunked (Transfer-Encoding: chunked)**
+        if (requestString.contains("Transfer-Encoding: chunked")) {
+            return requestString.endsWith("0\r\n\r\n");
+        }
+
+        return true; // If no Content-Length or chunked, assume complete
+    }
+
 
     private void handleSocketException(SocketChannel clientChannel, SelectionKey key, SocketException e) {
         if ("Connection reset".equals(e.getMessage())) {
