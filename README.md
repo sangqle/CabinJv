@@ -52,6 +52,9 @@ dependencies {
 }
 ```
 
+### Examples
+All examples are in the `examples` package.
+
 You can refer to the sample repository for more examples.
 
 ```bash

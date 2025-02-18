@@ -9,15 +9,15 @@ import com.cabin.express.router.Router;
 import com.cabin.express.worker.CabinWorkerPool;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
+import java.nio.channels.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -125,9 +125,16 @@ public class CabinServer {
     private void handleReadSafely(SelectionKey key) {
         try {
             handleRead(key);
-        } catch (Exception ex) {
+        } catch (ClosedChannelException ex) {
+            CabinLogger.info("Channel is closed: " + ex.getMessage());
+            key.cancel();
+        } catch (SocketTimeoutException ex) {
+            CabinLogger.info("Socket timeout: " + ex.getMessage());
+        } catch (IOException ex) {
             CabinLogger.error("Error handling read event: " + ex.getMessage(), ex);
             closeChannelSafely(key);
+        } catch (Exception ex) {
+            CabinLogger.error("Error handling read event: " + ex.getMessage(), ex);
         } finally {
             if (key.isValid()) {
                 key.interestOps(key.interestOps() | SelectionKey.OP_READ); // Re-enable read operations
@@ -240,36 +247,35 @@ public class CabinServer {
      */
     private void handleRead(SelectionKey key) throws IOException {
         SocketChannel clientChannel = (SocketChannel) key.channel();
-        ByteBuffer buffer = null;
-        try {
-            int expectedSize = Math.max(1024, clientChannel.socket().getReceiveBufferSize());
-            if (expectedSize > 1024 * 8) {
-                buffer = getDynamicBuffer(expectedSize);
-            } else {
-                buffer = ByteBuffer.allocate(1024);
-            }
-            buffer.clear();
+        ByteBuffer buffer = ByteBuffer.allocate(8192); // Default buffer size for efficiency
 
+        try {
             if (!clientChannel.isOpen()) {
                 CabinLogger.info("Channel is closed: " + clientChannel.getRemoteAddress());
                 return;
             }
 
-            int bytesRead = clientChannel.read(buffer);
+            int bytesRead;
+            ByteArrayOutputStream requestBuffer = new ByteArrayOutputStream();
 
+            // Read data in chunks to ensure the full request is received
+            while ((bytesRead = clientChannel.read(buffer)) > 0) {
+                buffer.flip();
+                byte[] chunk = new byte[buffer.remaining()];
+                buffer.get(chunk);
+                requestBuffer.write(chunk);
+                buffer.clear();
+            }
+
+            // If client closed connection, log and exit
             if (bytesRead == -1) {
-                // Client closed the connection
                 CabinLogger.info("Client closed connection: " + clientChannel.getRemoteAddress());
                 closeChannelAndCancelKey(clientChannel, key);
                 return;
             }
-            if (bytesRead > 0) {
-                buffer.flip();
-                byte[] data = new byte[buffer.remaining()];
-                buffer.get(data);
-                // Enqueue a task to process the request and write the response
-                writeWorkerPool.submitTask(() -> handleClientRequest(clientChannel, data));
-            }
+
+            // Enqueue task to process the full request
+            writeWorkerPool.submitTask(() -> handleClientRequest(clientChannel, requestBuffer));
         } catch (SocketException e) {
             handleSocketException(clientChannel, key, e);
         } catch (IOException e) {
@@ -281,9 +287,9 @@ public class CabinServer {
         }
     }
 
-    private void handleClientRequest(SocketChannel clientChannel, byte[] data) {
-        try (InputStream inputStream = new ByteArrayInputStream(data)) {
-            Request request = new Request(inputStream);
+    private void handleClientRequest(SocketChannel clientChannel, ByteArrayOutputStream byteArrayOutputStream) {
+        try {
+            Request request = new Request(byteArrayOutputStream);
             Response response = new Response(clientChannel);
 
             boolean handled = false;

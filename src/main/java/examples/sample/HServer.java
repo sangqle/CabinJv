@@ -15,7 +15,7 @@ public class HServer {
     public static void main(String[] args) throws IOException {
         CabinServer server = new ServerBuilder()
                 .setPort(8080)
-                .enableLogMetrics(true)
+                .enableLogMetrics(false)
                 .build();
 
         Router router = new Router();
