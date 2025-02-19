@@ -6,7 +6,6 @@ import com.google.gson.JsonSyntaxException;
 import java.io.*;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -78,8 +77,6 @@ public class Request {
 
             String requestLine = readLine(inputStream);
             if (requestLine.isEmpty()) {
-                // print all request data
-                System.out.println(Arrays.toString(requestDataBytes));
                 throw new IllegalArgumentException("Invalid HTTP request: Missing request line");
             }
 
@@ -92,8 +89,6 @@ public class Request {
             String fullPath = requestParts[1];
             parsePathAndQuery(fullPath);
 
-            // Parse headers
-            // 2. Read Headers using the same readLine method to avoid buffering issues
             headers = new HashMap<>();
             String headerLine;
             while (!(headerLine = readLine(inputStream)).isEmpty()) {  // End of headers marked by an empty line
@@ -110,7 +105,6 @@ public class Request {
                 contentLength = Integer.parseInt(headers.get("content-length"));
             }
 
-            // **3. Read the Body (Ensure Full Data)**
             if (contentLength > 0) {
                 byte[] bodyBytes = new byte[contentLength];
                 int totalBytesRead = 0;

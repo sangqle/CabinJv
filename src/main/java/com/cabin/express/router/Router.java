@@ -18,6 +18,7 @@ import java.util.regex.Pattern;
  * methods and handle requests based on the method and path of the request. The Router class also supports
  * middleware, which can be used to perform operations before or after handling a request.
  * <p>
+ *
  * @author Sang Le
  * @version 1.0.0
  * @since 2024-12-24
@@ -107,7 +108,6 @@ public class Router {
             Matcher matcher = entry.getKey().matcher(path);
             if (matcher.matches()) {
                 request.setPathParams(extractPathParams(matcher));
-                request.setQueryParams(parseQueryParams(request.getQueryString()));
 
                 MiddlewareChain chain = new MiddlewareChain(middlewares, (req, res) -> {
                     try {

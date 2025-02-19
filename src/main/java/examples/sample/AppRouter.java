@@ -15,7 +15,7 @@ public class AppRouter {
 
     protected static void setRouter() {
         router.setPrefix("/api/v1");
-        router.post("/upload", (req, res) -> {
+        router.post("/upload/:userId", (req, res) -> {
             Map<String, Object> body = req.getBody();
             UploadedFile file = req.getUploadedFile("file");
             JsonObject json = new JsonObject();
@@ -27,6 +27,7 @@ public class AppRouter {
             json.addProperty("fileName", file.getFileName());
             json.addProperty("contentType", file.getContentType());
             json.addProperty("fileSize", file.getSize());
+            json.addProperty("userId", req.getPathParam("userId"));
             res.send(json);
         });
     }

@@ -268,11 +268,8 @@ public class CabinServer {
                 byte[] tempData = new byte[buffer.remaining()];
                 buffer.get(tempData);
                 requestBuffer.write(tempData);
-//                requestBuffer.write(buffer.array(), 0, buffer.remaining());
                 buffer.clear();
             }
-
-            System.err.println("Request buffer size: " + requestBuffer.size());
 
             // If client disconnects, check if full request is received
             if (bytesRead == -1) {
@@ -281,7 +278,6 @@ public class CabinServer {
                 clientBuffers.remove(clientChannel);
                 return;
             }
-
 
             // Ensure we have received a full HTTP request before processing
             if (isRequestComplete(requestBuffer.toByteArray())) {
@@ -293,8 +289,7 @@ public class CabinServer {
                 // Wait for more data before processing
                 CabinLogger.info("Waiting for more data from: " + clientChannel.getRemoteAddress());
             }
-
-        } catch (IOException e) {
+        } catch (Throwable e) {
             CabinLogger.error("Error reading from client: " + e.getMessage(), e);
             closeChannelAndCancelKey(clientChannel, key);
             clientBuffers.remove(clientChannel);
