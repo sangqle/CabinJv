@@ -2,9 +2,11 @@ package examples.sample;
 
 import com.cabin.express.http.UploadedFile;
 import com.cabin.express.router.Router;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import java.util.Map;
+import java.util.List;
 
 public class AppRouter {
     static Router router = new Router();
@@ -17,17 +19,26 @@ public class AppRouter {
         router.setPrefix("/api/v1");
         router.post("/upload/:userId", (req, res) -> {
             Map<String, Object> body = req.getBody();
-            UploadedFile file = req.getUploadedFile("file");
+            List<UploadedFile> files = req.getUploadedFile("file");
             JsonObject json = new JsonObject();
-            if(file == null) {
+            JsonArray nodes = new JsonArray();
+            if (files == null) {
                 json.addProperty("error", "No file uploaded");
                 res.send(json);
                 return;
             }
-            json.addProperty("fileName", file.getFileName());
-            json.addProperty("contentType", file.getContentType());
-            json.addProperty("fileSize", file.getSize());
-            json.addProperty("userId", req.getPathParam("userId"));
+            for (UploadedFile file : files) {
+
+                JsonObject node = new JsonObject();
+                node.addProperty("fileName", file.getFileName());
+                node.addProperty("contentType", file.getContentType());
+                node.addProperty("size", file.getSize());
+
+                nodes.add(node);
+            }
+
+            // convert the list to a JSON array
+            json.add("files", nodes);
             res.send(json);
         });
     }

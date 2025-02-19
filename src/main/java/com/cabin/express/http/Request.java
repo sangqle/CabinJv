@@ -8,6 +8,7 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 
 /**
  * Represents an HTTP request.
@@ -25,7 +26,7 @@ public class Request {
     private Map<String, String> pathParams = new HashMap<>();
     private Map<String, String> headers = new HashMap<>();
     private Map<String, String> formFields = new HashMap<>();
-    private Map<String, UploadedFile> uploadedFiles = new HashMap<>();
+    private Map<String, List<UploadedFile>> uploadedFiles = new HashMap<>();
 
     private static final Gson gson = new Gson();
 
@@ -211,7 +212,7 @@ public class Request {
      * @param fieldName Name of the field
      * @return UploadedFile containing filename, content type, and byte array data
      */
-    public UploadedFile getUploadedFile(String fieldName) {
+    public List<UploadedFile> getUploadedFile(String fieldName) {
         return uploadedFiles.get(fieldName);
     }
 
