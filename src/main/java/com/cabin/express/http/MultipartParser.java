@@ -19,17 +19,35 @@ public class MultipartParser {
     }
 
     private void parseMultipart(InputStream inputStream) throws Exception {
-        // Wrap the stream to allow pushing back bytes we may have read too far.
+        // Wrap the stream so we can push back bytes if needed.
         PushbackInputStream pbis = new PushbackInputStream(inputStream, 4096);
-        String line;
-        // Read until we find the first boundary marker.
-        while ((line = readLine(pbis)) != null) {
-            if (line.startsWith("--" + boundary)) {
-                // if it's the final boundary, stop processing
-                if (line.equals("--" + boundary + "--")) {
-                    break;
-                }
-                parsePart(pbis);
+
+        // Read the initial boundary line.
+        String boundaryLine = readLine(pbis);
+        if (boundaryLine == null || !boundaryLine.startsWith("--" + boundary)) {
+            throw new IOException("Initial boundary not found");
+        }
+
+        while (true) {
+            // Peek at the next line: if it is the final boundary, stop.
+            String nextLine = readLine(pbis);
+            if (nextLine == null) break;
+            if (nextLine.equals("--" + boundary + "--")) {
+                // Final boundary; end processing.
+                break;
+            }
+            // Since the nextLine is not a boundary header (it belongs to the part),
+            // push it back so that parsePart can read it as part of the headers.
+            byte[] bytesToPushBack = (nextLine + "\r\n").getBytes(StandardCharsets.ISO_8859_1);
+            pbis.unread(bytesToPushBack);
+
+            // Parse the current part.
+            parsePart(pbis);
+
+            // After processing a part, read the boundary line (which should be the separator)
+            boundaryLine = readLine(pbis);
+            if (boundaryLine == null || boundaryLine.equals("--" + boundary + "--")) {
+                break;
             }
         }
     }
@@ -76,21 +94,25 @@ public class MultipartParser {
      */
     private String readLine(PushbackInputStream pbis) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        int c;
-        boolean gotCR = false;
-        while ((c = pbis.read()) != -1) {
+        int c = pbis.read();
+        if (c == -1) {
+            return null; // end of stream
+        }
+        while (c != -1) {
             if (c == '\r') {
-                gotCR = true;
+                int next = pbis.read();
+                if (next == '\n') {
+                    break;
+                } else {
+                    pbis.unread(next);
+                    break;
+                }
             } else if (c == '\n') {
                 break;
             } else {
-                if (gotCR) {
-                    // push back the non-newline char after CR
-                    pbis.unread(c);
-                    break;
-                }
                 baos.write(c);
             }
+            c = pbis.read();
         }
         return baos.toString(StandardCharsets.ISO_8859_1.name());
     }
@@ -139,8 +161,11 @@ public class MultipartParser {
                     // Remove the boundary bytes from the output.
                     byte[] partData = out.toByteArray();
                     int dataLength = partData.length - boundaryLen;
-                    // Push back any extra bytes read after the boundary
                     // (if any exist, they will be processed by the main loop)
+                    if (dataLength < 0) {
+                        return new byte[0];
+                    }
+                    // Push back any extra bytes read after the boundary
                     return Arrays.copyOf(partData, dataLength);
                 }
             }

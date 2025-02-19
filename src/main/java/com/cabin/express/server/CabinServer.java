@@ -279,6 +279,9 @@ public class CabinServer {
                 return;
             }
 
+            // Check if the request is complete
+            System.err.println("Request buffer size: " + requestBuffer.size());
+
             // Ensure we have received a full HTTP request before processing
             if (isRequestComplete(requestBuffer.toByteArray())) {
                 writeWorkerPool.submitTask(() -> {

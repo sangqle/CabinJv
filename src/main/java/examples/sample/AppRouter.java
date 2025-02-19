@@ -17,6 +17,12 @@ public class AppRouter {
 
     protected static void setRouter() {
         router.setPrefix("/api/v1");
+        router.get("/users/:userId", (req, res) -> {
+            String userId = req.getPathParam("userId");
+            JsonObject json = new JsonObject();
+            json.addProperty("userId", userId);
+            res.send(json);
+        });
         router.post("/upload/:userId", (req, res) -> {
             Map<String, Object> body = req.getBody();
             List<UploadedFile> files = req.getUploadedFile("file");
@@ -33,11 +39,11 @@ public class AppRouter {
                 node.addProperty("fileName", file.getFileName());
                 node.addProperty("contentType", file.getContentType());
                 node.addProperty("size", file.getSize());
-
                 nodes.add(node);
             }
 
             // convert the list to a JSON array
+            json.addProperty("fields", req.getFormFields().toString());
             json.add("files", nodes);
             res.send(json);
         });

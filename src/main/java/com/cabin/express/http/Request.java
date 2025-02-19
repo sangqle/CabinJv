@@ -6,6 +6,7 @@ import com.google.gson.JsonSyntaxException;
 import java.io.*;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
@@ -140,7 +141,7 @@ public class Request {
                 }
             }
 
-        } catch (Exception ex) {
+        } catch (Throwable ex) {
             throw new Exception("Failed to parse request: " + ex.getMessage(), ex);
         }
     }
@@ -226,6 +227,9 @@ public class Request {
         return formFields.get(fieldName);
     }
 
+    public List<String> getFormFields() {
+        return new ArrayList<>(formFields.keySet());
+    }
 
     private void parsePathAndQuery(String fullPath) throws Exception {
         String[] parts = fullPath.split("\\?", 2);
