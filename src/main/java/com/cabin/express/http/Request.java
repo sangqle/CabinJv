@@ -75,11 +75,11 @@ public class Request {
         try {
             byte[] requestDataBytes = outputStream.toByteArray();
             InputStream inputStream = new ByteArrayInputStream(requestDataBytes);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.ISO_8859_1));
 
-            // **1️⃣ Read & Parse the Request Line**
-            String requestLine = reader.readLine();
-            if (requestLine == null || requestLine.isEmpty()) {
+            String requestLine = readLine(inputStream);
+            if (requestLine.isEmpty()) {
+                // print all request data
+                System.out.println(Arrays.toString(requestDataBytes));
                 throw new IllegalArgumentException("Invalid HTTP request: Missing request line");
             }
 
@@ -92,24 +92,43 @@ public class Request {
             String fullPath = requestParts[1];
             parsePathAndQuery(fullPath);
 
-            // **2️⃣ Read & Parse Headers**
-            parseHeaders(reader);
+            // Parse headers
+            // 2. Read Headers using the same readLine method to avoid buffering issues
+            headers = new HashMap<>();
+            String headerLine;
+            while (!(headerLine = readLine(inputStream)).isEmpty()) {  // End of headers marked by an empty line
+                int colonIndex = headerLine.indexOf(":");
+                if (colonIndex > 0) {
+                    String key = headerLine.substring(0, colonIndex).trim().toLowerCase();
+                    String value = headerLine.substring(colonIndex + 1).trim();
+                    headers.put(key, value);
+                }
+            }
 
-            System.err.println("Headers: " + headers); // Debugging output
-
-            // **3️⃣ Read & Parse Body (if any)**
+            int contentLength = 0;
             if (headers.containsKey("content-length")) {
-                int contentLength = Integer.parseInt(headers.get("content-length"));
-                byte[] bodyBytes = new byte[contentLength];
+                contentLength = Integer.parseInt(headers.get("content-length"));
+            }
 
-                // Read the exact content-length bytes from the stream
-                int bytesRead = inputStream.read(bodyBytes);
-                if (bytesRead != contentLength) {
-                    System.err.println("Expected " + contentLength + " bytes, but read " + bytesRead + " bytes");
+            // **3. Read the Body (Ensure Full Data)**
+            if (contentLength > 0) {
+                byte[] bodyBytes = new byte[contentLength];
+                int totalBytesRead = 0;
+
+                while (totalBytesRead < contentLength) {
+                    int bytesRead = inputStream.read(bodyBytes, totalBytesRead, contentLength - totalBytesRead);
+                    if (bytesRead == -1) {
+                        break; // End of stream
+                    }
+                    totalBytesRead += bytesRead;
+                }
+
+                if (totalBytesRead < contentLength) {
+                    System.err.println("Expected " + contentLength + " bytes, but read " + totalBytesRead + " bytes");
                     throw new IOException("Unexpected end of request body");
                 }
 
-                // **4️⃣ Process Body Based on Content-Type**
+                // **4. Handle Different Content Types**
                 if (headers.containsKey("content-type")) {
                     String contentType = headers.get("content-type");
                     if (contentType.contains("application/x-www-form-urlencoded")) {
@@ -129,6 +148,30 @@ public class Request {
         } catch (Exception ex) {
             throw new Exception("Failed to parse request: " + ex.getMessage(), ex);
         }
+    }
+
+
+    /**
+     * Reads a single line from an InputStream without extra buffering.
+     * It reads byte-by-byte until it finds a CRLF (i.e. "\r\n") sequence.
+     */
+    private String readLine(InputStream inputStream) throws IOException {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        int c;
+        while ((c = inputStream.read()) != -1) {
+            if (c == '\r') {
+                int next = inputStream.read();
+                if (next == '\n') {
+                    break;  // End of line reached
+                }
+                // If \r not followed by \n, include both characters
+                buffer.write(c);
+                buffer.write(next);
+            } else {
+                buffer.write(c);
+            }
+        }
+        return buffer.toString(StandardCharsets.ISO_8859_1).trim();
     }
 
     // **URL-Encoded Form Body Parser**

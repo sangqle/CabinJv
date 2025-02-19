@@ -36,6 +36,7 @@ public class CabinServer {
     private final List<Router> routers = new ArrayList<>();
     private final List<Middleware> globalMiddlewares = new ArrayList<>();
     private final Map<SocketChannel, Long> connectionLastActive = new ConcurrentHashMap<>();
+    private final Map<SocketChannel, ByteArrayOutputStream> clientBuffers = new HashMap<>();
 
     // Resource logging task
     private ScheduledFuture<?> resourceLoggingTask;
@@ -258,32 +259,36 @@ public class CabinServer {
             }
 
             // Persistent storage for request data
-            ByteArrayOutputStream requestBuffer = new ByteArrayOutputStream();
+            ByteArrayOutputStream requestBuffer = clientBuffers.computeIfAbsent(clientChannel, k -> new ByteArrayOutputStream());
             int bytesRead;
 
             // Read data in chunks and accumulate
             while ((bytesRead = clientChannel.read(buffer)) > 0) {
                 buffer.flip();
-                requestBuffer.write(buffer.array(), 0, buffer.remaining());
+                byte[] tempData = new byte[buffer.remaining()];
+                buffer.get(tempData);
+                requestBuffer.write(tempData);
+//                requestBuffer.write(buffer.array(), 0, buffer.remaining());
                 buffer.clear();
             }
+
+            System.err.println("Request buffer size: " + requestBuffer.size());
 
             // If client disconnects, check if full request is received
             if (bytesRead == -1) {
                 CabinLogger.info("Client closed connection: " + clientChannel.getRemoteAddress());
-
-                // Check if we have enough data to process a request
-                if (requestBuffer.size() > 0) {
-                    writeWorkerPool.submitTask(() -> handleClientRequest(clientChannel, requestBuffer));
-                }
-
                 closeChannelAndCancelKey(clientChannel, key);
+                clientBuffers.remove(clientChannel);
                 return;
             }
 
+
             // Ensure we have received a full HTTP request before processing
             if (isRequestComplete(requestBuffer.toByteArray())) {
-                writeWorkerPool.submitTask(() -> handleClientRequest(clientChannel, requestBuffer));
+                writeWorkerPool.submitTask(() -> {
+                    handleClientRequest(clientChannel, requestBuffer);
+                    clientBuffers.remove(clientChannel);
+                });
             } else {
                 // Wait for more data before processing
                 CabinLogger.info("Waiting for more data from: " + clientChannel.getRemoteAddress());
@@ -292,12 +297,16 @@ public class CabinServer {
         } catch (IOException e) {
             CabinLogger.error("Error reading from client: " + e.getMessage(), e);
             closeChannelAndCancelKey(clientChannel, key);
+            clientBuffers.remove(clientChannel);
         }
     }
 
 
     private void handleClientRequest(SocketChannel clientChannel, ByteArrayOutputStream byteArrayOutputStream) {
         try {
+
+            System.err.println("Request buffer size: " + byteArrayOutputStream.size());
+
             Request request = new Request(byteArrayOutputStream);
             Response response = new Response(clientChannel);
 

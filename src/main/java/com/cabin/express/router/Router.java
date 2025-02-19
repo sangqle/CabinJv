@@ -122,7 +122,7 @@ public class Router {
 
                 try {
                     chain.next(request, response);
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     CabinLogger.error("Error processing request: " + e.getMessage(), e);
                     try {
                         response.setStatusCode(500);
