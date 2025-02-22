@@ -5,6 +5,7 @@ import com.cabin.express.router.Router;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.List;
 
@@ -34,7 +35,8 @@ public class AppRouter {
                 return;
             }
             for (UploadedFile file : files) {
-
+                byte[] nameBytes = file.getFileName().getBytes(StandardCharsets.UTF_8);
+                System.out.println("Encoded File Name (Hex): " + bytesToHex(nameBytes));
                 JsonObject node = new JsonObject();
                 node.addProperty("fileName", file.getFileName());
                 node.addProperty("contentType", file.getContentType());
@@ -45,7 +47,17 @@ public class AppRouter {
             // convert the list to a JSON array
             json.addProperty("fields", req.getFormFields().toString());
             json.add("files", nodes);
+
+            System.err.println("Received files: " + json.toString());
             res.send(json);
         });
+    }
+
+    public static String bytesToHex(byte[] bytes) {
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : bytes) {
+            hexString.append(String.format("%02X ", b));
+        }
+        return hexString.toString();
     }
 }

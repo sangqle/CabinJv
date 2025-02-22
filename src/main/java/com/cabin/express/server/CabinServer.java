@@ -8,10 +8,8 @@ import com.cabin.express.loggger.CabinLogger;
 import com.cabin.express.router.Router;
 import com.cabin.express.worker.CabinWorkerPool;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
@@ -279,9 +277,6 @@ public class CabinServer {
                 return;
             }
 
-            // Check if the request is complete
-            System.err.println("Request buffer size: " + requestBuffer.size());
-
             // Ensure we have received a full HTTP request before processing
             if (isRequestComplete(requestBuffer.toByteArray())) {
                 writeWorkerPool.submitTask(() -> {
@@ -302,9 +297,6 @@ public class CabinServer {
 
     private void handleClientRequest(SocketChannel clientChannel, ByteArrayOutputStream byteArrayOutputStream) {
         try {
-
-            System.err.println("Request buffer size: " + byteArrayOutputStream.size());
-
             Request request = new Request(byteArrayOutputStream);
             Response response = new Response(clientChannel);
 

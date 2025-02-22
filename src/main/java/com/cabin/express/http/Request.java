@@ -120,7 +120,6 @@ public class Request {
                 }
 
                 if (totalBytesRead < contentLength) {
-                    System.err.println("Expected " + contentLength + " bytes, but read " + totalBytesRead + " bytes");
                     throw new IOException("Unexpected end of request body");
                 }
 

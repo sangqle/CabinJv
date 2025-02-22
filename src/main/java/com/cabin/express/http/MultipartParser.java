@@ -1,10 +1,21 @@
 package com.cabin.express.http;
 
+import com.cabin.express.loggger.CabinLogger;
+
 import java.io.*;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.text.Normalizer;
 import java.util.*;
 import java.util.regex.*;
 
+/**
+ * Represents an HTTP request.
+ *
+ * @author Sang Le
+ * @version 1.0.0
+ * @since 2025-02-23
+ */
 public class MultipartParser {
     private final Map<String, String> formFields = new HashMap<>();
     private final Map<String, List<UploadedFile>> uploadedFiles = new HashMap<>();
@@ -71,17 +82,11 @@ public class MultipartParser {
             }
         }
 
-        // --- 2. Read the Body (Binary Data) Until the Next Boundary ---
         byte[] partData = readPartData(pbis, boundary);
 
-        // --- 3. Store as File or Form Field ---
         if (fileName != null) {
             // File part: store in a list per field name
-            List<UploadedFile> fileList = uploadedFiles.get(fieldName);
-            if (fileList == null) {
-                fileList = new ArrayList<>();
-                uploadedFiles.put(fieldName, fileList);
-            }
+            List<UploadedFile> fileList = uploadedFiles.computeIfAbsent(fieldName, k -> new ArrayList<>());
             fileList.add(new UploadedFile(fileName, contentType, partData));
         } else {
             // Regular form field: store its value as string
@@ -94,27 +99,32 @@ public class MultipartParser {
      */
     private String readLine(PushbackInputStream pbis) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        int c = pbis.read();
-        if (c == -1) {
-            return null; // end of stream
-        }
-        while (c != -1) {
-            if (c == '\r') {
-                int next = pbis.read();
-                if (next == '\n') {
+        try {
+            int c = pbis.read();
+            if (c == -1) {
+                return null; // end of stream
+            }
+            while (c != -1) {
+                if (c == '\r') {
+                    int next = pbis.read();
+                    if (next == '\n') {
+                        break;
+                    } else {
+                        pbis.unread(next);
+                        break;
+                    }
+                } else if (c == '\n') {
                     break;
                 } else {
-                    pbis.unread(next);
-                    break;
+                    baos.write(c);
                 }
-            } else if (c == '\n') {
-                break;
-            } else {
-                baos.write(c);
+                c = pbis.read();
             }
-            c = pbis.read();
+            return baos.toString(StandardCharsets.ISO_8859_1);
+        } catch (Throwable ex) {
+            CabinLogger.error(String.format("Error reading line: %s", ex.getMessage()), ex);
         }
-        return baos.toString(StandardCharsets.ISO_8859_1.name());
+        return null;
     }
 
     /**
@@ -189,8 +199,56 @@ public class MultipartParser {
     }
 
     private String extractFileName(String contentDisposition) {
-        Matcher matcher = Pattern.compile("filename=\"([^\"]+)\"").matcher(contentDisposition);
-        return matcher.find() ? matcher.group(1) : null;
+        if (contentDisposition == null || contentDisposition.isEmpty()) {
+            return null;
+        }
+        // 1. Try extracting filename*=UTF-8''encoded-filename
+        Pattern patternFilenameStar = Pattern.compile("filename\\*=([^;]+)");
+        Matcher matcher = patternFilenameStar.matcher(contentDisposition);
+        if (matcher.find()) {
+            String filenameStar = matcher.group(1).trim();
+            int idx = filenameStar.indexOf("''"); // Locate charset separator
+            if (idx != -1) {
+                String charset = filenameStar.substring(0, idx);
+                String encodedFilename = filenameStar.substring(idx + 2);
+                try {
+                    String decodedFilename = URLDecoder.decode(encodedFilename, charset);
+                    return sanitizeFileName(decodedFilename);
+                } catch (Exception e) {
+                    CabinLogger.error(String.format("Error decoding filename: %s", e.getMessage()), e);
+                }
+            }
+        }
+
+        // 2. Try extracting filename="..."
+        Pattern patternFilename = Pattern.compile("filename=\"([^\"]+)\"");
+        matcher = patternFilename.matcher(contentDisposition);
+        if (matcher.find()) {
+            String filename = matcher.group(1);
+
+            // Fix potential encoding issues from ISO-8859-1
+            filename = new String(filename.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
+
+            return sanitizeFileName(filename);
+        }
+
+        return null;
+    }
+
+    // Sanitize file name: Fix encoding, remove unwanted characters
+    private String sanitizeFileName(String fileName) {
+        if (fileName == null) return null;
+
+        // Normalize Unicode (fixes smart apostrophes)
+        fileName = Normalizer.normalize(fileName, Normalizer.Form.NFKD);
+
+        // Replace smart apostrophes with standard ones
+        fileName = fileName.replace("’", "'");
+
+        // Remove non-printable or problematic characters
+        fileName = fileName.replaceAll("[^\\p{Print}]", "");
+
+        return fileName;
     }
 
     public Map<String, String> getFormFields() {
