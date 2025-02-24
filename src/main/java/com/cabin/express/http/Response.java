@@ -128,49 +128,33 @@ public class Response {
      */
     public void send() {
         try {
-            // Write headers and status line
+            // Build status line and headers
             StringBuilder headersBuilder = new StringBuilder();
-
-            // Status line
             String statusMessage = getStatusMessage(statusCode);
             headersBuilder.append(String.format("HTTP/1.1 %d %s\r\n", statusCode, statusMessage));
 
-            // Headers
             headers.forEach((key, value) -> headersBuilder.append(String.format("%s: %s\r\n", key, value)));
-
-            // Cookies
             cookies.forEach((key, value) -> headersBuilder.append(String.format("Set-Cookie: %s=%s\r\n", key, value)));
 
-            // Content-Length
-            int contentLength = body != null ? body.length() : 0;
-            headersBuilder.append(String.format("Content-Length: %d\r\n", contentLength));
-
-            // End of headers
+            // Convert body to bytes using UTF-8
+            byte[] bodyBytes = body != null ? body.toString().getBytes(StandardCharsets.UTF_8) : new byte[0];
+            headersBuilder.append(String.format("Content-Length: %d\r\n", bodyBytes.length));
             headersBuilder.append("\r\n");
 
-            // Convert headers to bytes
+            // Write headers
             ByteBuffer headerBuffer = ByteBuffer.wrap(headersBuilder.toString().getBytes(StandardCharsets.UTF_8));
+            ByteBuffer bodyBuffer = ByteBuffer.wrap(bodyBytes);
 
-            // Convert body to bytes (if not null)
-            ByteBuffer bodyBuffer = body != null ? ByteBuffer.wrap(body.toString().getBytes(StandardCharsets.UTF_8)) : null;
-
-            // Ensure the client channel is open
             if (!clientChannel.isOpen()) {
                 CabinLogger.error(String.format("Client channel is closed: %s", clientChannel), null);
                 return;
             }
 
-            // Write the headers first
             while (headerBuffer.hasRemaining()) {
-                CabinLogger.debug("Writing headers to client channel...");
                 clientChannel.write(headerBuffer);
             }
-
-            // Write the body if it exists
-            if (bodyBuffer != null) {
-                while (bodyBuffer.hasRemaining()) {
-                    clientChannel.write(bodyBuffer);
-                }
+            while (bodyBuffer.hasRemaining()) {
+                clientChannel.write(bodyBuffer);
             }
         } catch (IOException e) {
             if ("Broken pipe".equals(e.getMessage())) {
@@ -182,6 +166,7 @@ public class Response {
             CabinLogger.error("Unexpected error sending response: " + e.getMessage(), e);
         }
     }
+
 
     /**
      * Write specified object as JSON to the response body.

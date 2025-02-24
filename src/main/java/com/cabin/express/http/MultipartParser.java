@@ -230,8 +230,11 @@ public class MultipartParser {
         // Replace smart apostrophes with standard ones
         fileName = fileName.replace("’", "'");
 
-        // Remove non-printable or problematic characters
-        fileName = fileName.replaceAll("[^\\p{Print}]", "");
+        // Remove control characters (non-printable) but keep punctuation.
+        fileName = fileName.replaceAll("\\p{Cntrl}", "");
+
+        // Optionally, remove characters that are not allowed in file systems (e.g., on Windows)
+        // fileName = fileName.replaceAll("[\\\\/:*?\"<>|]", "");
 
         return fileName;
     }

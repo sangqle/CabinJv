@@ -51,6 +51,7 @@ public class AppRouter {
             // convert the list to a JSON array
             json.addProperty("fields", req.getFormFields().toString());
             json.add("files", nodes);
+
             res.send(json);
         });
     }
