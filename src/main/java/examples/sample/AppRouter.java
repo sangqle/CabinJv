@@ -5,6 +5,7 @@ import com.cabin.express.router.Router;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.List;
@@ -44,13 +45,30 @@ public class AppRouter {
                 nodes.add(node);
             }
 
+            // write the files to the disk
+            writeFiles(files);
+
             // convert the list to a JSON array
             json.addProperty("fields", req.getFormFields().toString());
             json.add("files", nodes);
-
-            System.err.println("Received files: " + json.toString());
             res.send(json);
         });
+    }
+
+    public static void writeFiles(List<UploadedFile> files) {
+        for (UploadedFile file : files) {
+            try {
+                // Create dir if not exists
+                File dir = new File("uploads");
+                if (!dir.exists()) {
+                    dir.mkdirs();
+                }
+                File newFile = new File("uploads/" + file.getFileName());
+                java.nio.file.Files.write(newFile.toPath(), file.getContent());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     public static String bytesToHex(byte[] bytes) {

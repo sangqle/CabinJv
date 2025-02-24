@@ -145,39 +145,24 @@ public class MultipartParser {
 
         int b;
         while ((b = pbis.read()) != -1) {
-            // Write out previous buffered bytes if not matching boundary
-            if (firstByte) {
-                // For the very first byte of the part, we don't have a preceding CRLF.
-                firstByte = false;
-                window[windowPos++] = (byte) b;
-                continue;
-            }
-            // Slide the window: add the new byte to the window.
-            window[windowPos % boundaryLen] = (byte) b;
-            windowPos++;
-
-            // Write the byte to output (we might adjust later if we detect boundary)
+            // write the byte to the output stream
             out.write(b);
 
-            // Check if we have enough bytes in our sliding window to compare
-            if (windowPos >= boundaryLen) {
-                // Build the current window content in order
-                byte[] currentWindow = new byte[boundaryLen];
-                for (int i = 0; i < boundaryLen; i++) {
-                    currentWindow[i] = window[(windowPos - boundaryLen + i) % boundaryLen];
-                }
-                // Compare with the boundary bytes
-                if (Arrays.equals(currentWindow, boundaryBytes)) {
-                    // Remove the boundary bytes from the output.
-                    byte[] partData = out.toByteArray();
-                    int dataLength = partData.length - boundaryLen;
-                    // (if any exist, they will be processed by the main loop)
-                    if (dataLength < 0) {
-                        return new byte[0];
-                    }
-                    // Push back any extra bytes read after the boundary
-                    return Arrays.copyOf(partData, dataLength);
-                }
+            // Update the sliding windoe
+            if (windowPos < boundaryLen) {
+                window[windowPos++] = (byte) b;
+            } else {
+                // Shift the window to the left
+                System.arraycopy(window, 1, window, 0, boundaryLen - 1);
+                window[boundaryLen - 1] = (byte) b;
+            }
+
+            // Check if the boundary is reached
+            if (windowPos == boundaryLen && Arrays.equals(window, boundaryBytes)) {
+                // Remove the boundary from the output stream
+                byte[] partData = out.toByteArray();
+                int dataLength = partData.length - boundaryLen;
+                return Arrays.copyOf(partData, dataLength);
             }
         }
         return out.toByteArray();
