@@ -12,8 +12,8 @@ publishing {
             name = "cabinJ"
             url = uri("https://maven.pkg.github.com/OWNER/REPOSITORY")
             credentials {
-                username = project.findProperty("gpr.user") ?: System.getenv("GPR_USER")
-                password = project.findProperty("gpr.key") ?: System.getenv("GPR_TOKEN")
+                username = project.findProperty("gpr.user") ?: System.getenv("USERNAME")
+                password = project.findProperty("gpr.key") ?: System.getenv("TOKEN")
             }
         }
     }
