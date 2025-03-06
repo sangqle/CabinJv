@@ -4,12 +4,12 @@ plugins {
 }
 
 group = 'com.cabin.express'
-version = '10.0.1'
+version = '10.0.2'
 
 publishing {
     repositories {
         maven {
-            name = "cabinJ"
+            name = "cabinjv"
             url = uri("https://maven.pkg.github.com/sangqle/cabinjv")
             credentials {
                 username = project.findProperty("gpr.user") ?: System.getenv("USERNAME")
