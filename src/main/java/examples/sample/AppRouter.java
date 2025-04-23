@@ -4,6 +4,7 @@ import com.cabin.express.http.UploadedFile;
 import com.cabin.express.router.Router;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import examples.sample.dto.UserDTO;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -19,6 +20,15 @@ public class AppRouter {
 
     protected static void setRouter() {
         router.setPrefix("/api/v1");
+        router.post("/users", (req, res) -> {
+            UserDTO userDTO = req.getBodyAs(UserDTO.class);
+            JsonObject json = new JsonObject();
+            json.addProperty("name", userDTO.getName());
+            json.addProperty("email", userDTO.getEmail());
+            json.addProperty("age", userDTO.getAge());
+            json.addProperty("message", "User created successfully");
+            res.send(json);
+        });
         router.get("/users/:userId", (req, res) -> {
             String userId = req.getPathParam("userId");
             JsonObject json = new JsonObject();

@@ -273,7 +273,7 @@ public class Request {
      * @throws IllegalArgumentException if the body cannot be parsed as the specified class.
      */
     public <T> T getBodyAs(Class<T> clazz) {
-        if (body != null && headers.containsKey("Content-Type") && headers.get("Content-Type").toLowerCase().contains("application/json")) {
+        if (body != null && headers.containsKey("content-type") && headers.get("content-type").toLowerCase().contains("application/json")) {
             try {
                 return gson.fromJson(body, clazz);
             } catch (Exception e) {
