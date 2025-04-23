@@ -29,6 +29,12 @@ public class MultipartParser {
         parseMultipart(new ByteArrayInputStream(requestData));
     }
 
+    /**
+     * Parses the multipart data from the input stream.
+     *
+     * @param inputStream The input stream containing the multipart data.
+     * @throws Exception If an error occurs during parsing.
+     */
     private void parseMultipart(InputStream inputStream) throws Exception {
         // Wrap the stream so we can push back bytes if needed.
         PushbackInputStream pbis = new PushbackInputStream(inputStream, 4096);
@@ -65,6 +71,8 @@ public class MultipartParser {
 
     private void parsePart(PushbackInputStream pbis) throws IOException {
         // --- 1. Read Part Headers ---
+        Map<String, String> headers = new HashMap<>();
+        Map<String, String> metadata = new HashMap<>();
         String contentDisposition = null;
         String contentType = null;
         String fieldName = null;
@@ -73,24 +81,68 @@ public class MultipartParser {
         String line;
         // Read header lines until an empty line is encountered
         while ((line = readLine(pbis)) != null && !line.isEmpty()) {
-            if (line.startsWith("Content-Disposition:")) {
-                contentDisposition = line;
-                fieldName = extractFieldName(contentDisposition);
-                fileName = extractFileName(contentDisposition);
-            } else if (line.startsWith("Content-Type:")) {
-                contentType = line.substring("Content-Type:".length()).trim();
+            int colonIndex = line.indexOf(":");
+            if (colonIndex > 0) {
+                String headerName = line.substring(0, colonIndex).trim();
+                String headerValue = line.substring(colonIndex + 1).trim();
+                headers.put(headerName, headerValue);
+
+                // Store all headers as metadata
+                metadata.put("header." + headerName, headerValue);
+
+                if (headerName.equalsIgnoreCase("Content-Disposition")) {
+                    contentDisposition = headerValue;
+                    fieldName = extractFieldName(contentDisposition);
+                    fileName = extractFileName(contentDisposition);
+
+                    // Extract and store all parameters from Content-Disposition
+                    extractContentDispositionParams(contentDisposition, metadata);
+                } else if (headerName.equalsIgnoreCase("Content-Type")) {
+                    contentType = headerValue;
+                }
             }
         }
 
         byte[] partData = readPartData(pbis, boundary);
 
         if (fileName != null) {
+            // Add more metadata
+            metadata.put("size", String.valueOf(partData.length));
+            metadata.put("fieldName", fieldName);
+
             // File part: store in a list per field name
             List<UploadedFile> fileList = uploadedFiles.computeIfAbsent(fieldName, k -> new ArrayList<>());
-            fileList.add(new UploadedFile(fileName, contentType, partData));
+            fileList.add(new UploadedFile(fileName, contentType, partData, metadata));
         } else {
             // Regular form field: store its value as string
             formFields.put(fieldName, new String(partData, StandardCharsets.UTF_8).trim());
+        }
+    }
+
+    /**
+     * Extracts parameters from Content-Disposition header and adds them to metadata
+     */
+    private void extractContentDispositionParams(String contentDisposition, Map<String, String> metadata) {
+        if (contentDisposition == null) return;
+
+        String[] parts = contentDisposition.split(";");
+        for (String part : parts) {
+            part = part.trim();
+            int equalsIndex = part.indexOf('=');
+            if (equalsIndex > 0) {
+                String name = part.substring(0, equalsIndex).trim();
+                String value = part.substring(equalsIndex + 1).trim();
+
+                // Remove quotes if present
+                if (value.startsWith("\"") && value.endsWith("\"")) {
+                    value = value.substring(1, value.length() - 1);
+                }
+
+                metadata.put("disposition." + name, value);
+            } else {
+                // Handle the disposition type (e.g., "form-data")
+                metadata.put("disposition.type", part);
+            }
         }
     }
 
