@@ -130,8 +130,13 @@ private static ConfigLoader instance;
      * @param key Property key
      * @return Property value or null if not found
      */
-    public String getString(String key) {
-        return configProperties.getProperty(key);
+    public String getString(String key) throws IllegalArgumentException {
+        String property = configProperties.getProperty(key);
+        if(property == null) {
+            CabinLogger.warn("Property not found: " + key);
+            throw new IllegalArgumentException("Property not found: " + key);
+        }
+        return property;
     }
 
     /**

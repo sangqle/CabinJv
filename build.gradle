@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'com.cabin.express'
-version = '11.0.1'
+version = '11.0.2'
 
 publishing {
     repositories {
