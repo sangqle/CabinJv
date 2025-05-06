@@ -1,5 +1,6 @@
 package examples.sample;
 
+import com.cabin.express.middleware.GzipMiddleware;
 import com.cabin.express.router.Router;
 import com.cabin.express.server.CabinServer;
 import com.cabin.express.server.ServerBuilder;
@@ -24,6 +25,7 @@ public class HServer {
             json.addProperty("message", "Hello, World!");
             res.send(json);
         });
+        server.use(new GzipMiddleware());
         server.use(router);
         server.use(AppRouter.router);
         server.start();

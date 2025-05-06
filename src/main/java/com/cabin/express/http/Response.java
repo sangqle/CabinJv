@@ -1,10 +1,13 @@
 package com.cabin.express.http;
 
 import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.stream.NonBlockingOutputStream;
 import com.google.gson.Gson;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -22,6 +25,7 @@ public class Response {
     private Map<String, String> headers = new HashMap<>();
     private Map<String, String> cookies = new HashMap<>();
     private StringBuilder body = new StringBuilder();
+    private OutputStream out;
     private final SocketChannel clientChannel;
 
     private static final Gson gson = new Gson();
@@ -34,6 +38,7 @@ public class Response {
 
     public Response(SocketChannel clientChannel) {
         this.clientChannel = clientChannel;
+        this.out = new NonBlockingOutputStream(clientChannel);
     }
 
     public void setStatusCode(int statusCode) {
@@ -128,45 +133,38 @@ public class Response {
      */
     public void send() {
         try {
-            // Build status line and headers
-            StringBuilder headersBuilder = new StringBuilder();
-            String statusMessage = getStatusMessage(statusCode);
-            headersBuilder.append(String.format("HTTP/1.1 %d %s\r\n", statusCode, statusMessage));
+            // build status+headers
+            StringBuilder sb = new StringBuilder()
+                    .append("HTTP/1.1 ")
+                    .append(statusCode).append(" ")
+                    .append(HttpStatusCode.getStatusMessage(statusCode))
+                    .append("\r\n");
+            headers.forEach((k,v) ->
+                    sb.append(k).append(": ").append(v).append("\r\n")
+            );
+            cookies.values().forEach(c ->
+                    sb.append("Set-Cookie: ").append(c).append("\r\n")
+            );
 
-            headers.forEach((key, value) -> headersBuilder.append(String.format("%s: %s\r\n", key, value)));
-            cookies.forEach((key, value) -> headersBuilder.append(String.format("Set-Cookie: %s=%s\r\n", key, value)));
+            byte[] bodyBytes = body.toString()
+                    .getBytes(StandardCharsets.UTF_8);
 
-            // Convert body to bytes using UTF-8
-            byte[] bodyBytes = body != null ? body.toString().getBytes(StandardCharsets.UTF_8) : new byte[0];
-            headersBuilder.append(String.format("Content-Length: %d\r\n", bodyBytes.length));
-            headersBuilder.append("\r\n");
+            sb.append("Content-Length: ")
+                    .append(bodyBytes.length)
+                    .append("\r\n\r\n");
 
-            // Write headers
-            ByteBuffer headerBuffer = ByteBuffer.wrap(headersBuilder.toString().getBytes(StandardCharsets.UTF_8));
-            ByteBuffer bodyBuffer = ByteBuffer.wrap(bodyBytes);
-
-            if (!clientChannel.isOpen()) {
-                CabinLogger.error(String.format("Client channel is closed: %s", clientChannel), null);
-                return;
+            // **write via out only** (so your custom write() is called)
+            out.write(sb.toString().getBytes(StandardCharsets.UTF_8));
+            if (bodyBytes.length > 0) {
+                out.write(bodyBytes);
             }
+            out.flush();
 
-            while (headerBuffer.hasRemaining()) {
-                clientChannel.write(headerBuffer);
-            }
-            while (bodyBuffer.hasRemaining()) {
-                clientChannel.write(bodyBuffer);
-            }
         } catch (IOException e) {
-            if ("Broken pipe".equals(e.getMessage())) {
-                CabinLogger.error("Client closed connection: " + e.getMessage(), e);
-            } else {
-                CabinLogger.error("Error sending response: " + e.getMessage(), e);
-            }
-        } catch (Throwable e) {
-            CabinLogger.error("Unexpected error sending response: " + e.getMessage(), e);
+            String msg = e.getMessage();
+            CabinLogger.error("Error writing response: " + msg, e);
         }
     }
-
 
     /**
      * Write specified object as JSON to the response body.
@@ -185,5 +183,15 @@ public class Response {
 
     private String getStatusMessage(int statusCode) {
         return HttpStatusCode.getStatusMessage(statusCode);
+    }
+
+    public OutputStream getOutputStream() {
+        return out;
+    }
+    public void setOutputStream(OutputStream out) {
+        this.out = out;
+    }
+    public Map<String,String> getHeaders() {
+        return headers;
     }
 }
