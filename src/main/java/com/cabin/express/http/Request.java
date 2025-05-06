@@ -6,10 +6,7 @@ import com.google.gson.JsonSyntaxException;
 import java.io.*;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.List;
+import java.util.*;
 
 /**
  * Represents an HTTP request.
@@ -25,7 +22,7 @@ public class Request {
     private Map<String, Object> bodyAsJson = new HashMap<>();
     private Map<String, String> queryParams = new HashMap<>();
     private Map<String, String> pathParams = new HashMap<>();
-    private Map<String, String> headers = new HashMap<>();
+    private final Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
     private Map<String, String> formFields = new HashMap<>();
     private Map<String, List<UploadedFile>> uploadedFiles = new HashMap<>();
     private final Map<Class<?>, Object> attributes = new HashMap<>();
@@ -92,20 +89,20 @@ public class Request {
             String fullPath = requestParts[1];
             parsePathAndQuery(fullPath);
 
-            headers = new HashMap<>();
+            // Parse headers until blank line
             String headerLine;
-            while (!(headerLine = readLine(inputStream)).isEmpty()) {  // End of headers marked by an empty line
+            while (!(headerLine = readLine(inputStream)).isEmpty()) {
                 int colonIndex = headerLine.indexOf(":");
                 if (colonIndex > 0) {
-                    String key = headerLine.substring(0, colonIndex).trim().toLowerCase();
+                    String name = headerLine.substring(0, colonIndex).trim();
                     String value = headerLine.substring(colonIndex + 1).trim();
-                    headers.put(key, value);
+                    headers.put(name, value);
                 }
             }
 
             int contentLength = 0;
-            if (headers.containsKey("content-length")) {
-                contentLength = Integer.parseInt(headers.get("content-length"));
+            if (headers.containsKey("Content-Length")) {
+                contentLength = Integer.parseInt(headers.get("Content-Length"));
             }
 
             if (contentLength > 0) {
@@ -115,7 +112,7 @@ public class Request {
                 while (totalBytesRead < contentLength) {
                     int bytesRead = inputStream.read(bodyBytes, totalBytesRead, contentLength - totalBytesRead);
                     if (bytesRead == -1) {
-                        break; // End of stream
+                        break;
                     }
                     totalBytesRead += bytesRead;
                 }
@@ -124,20 +121,14 @@ public class Request {
                     throw new IOException("Unexpected end of request body");
                 }
 
-                // **4. Handle Different Content Types**
-                if (headers.containsKey("content-type")) {
-                    String contentType = headers.get("content-type");
-                    if (contentType.contains("application/x-www-form-urlencoded")) {
-                        body = new String(bodyBytes, StandardCharsets.UTF_8);
-                        parseFormUrlEncodedBody();
-                    } else if (contentType.contains("multipart/form-data")) {
-                        parseMultipartBody(bodyBytes, contentType);
-                    } else if (contentType.contains("application/json")) {
-                        body = new String(bodyBytes, StandardCharsets.UTF_8);
-                        parseJsonBody();
-                    } else {
-                        body = new String(bodyBytes, StandardCharsets.UTF_8);
-                    }
+                String contentType = headers.getOrDefault("Content-Type", "");
+                body = new String(bodyBytes, StandardCharsets.UTF_8);
+                if (contentType.contains("application/x-www-form-urlencoded")) {
+                    parseFormUrlEncodedBody();
+                } else if (contentType.contains("multipart/form-data")) {
+                    parseMultipartBody(bodyBytes, contentType);
+                } else if (contentType.contains("application/json")) {
+                    parseJsonBody();
                 }
             }
 
