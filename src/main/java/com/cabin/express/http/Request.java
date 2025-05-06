@@ -28,6 +28,7 @@ public class Request {
     private Map<String, String> headers = new HashMap<>();
     private Map<String, String> formFields = new HashMap<>();
     private Map<String, List<UploadedFile>> uploadedFiles = new HashMap<>();
+    private final Map<Class<?>, Object> attributes = new HashMap<>();
 
     private static final Gson gson = new Gson();
 
@@ -393,6 +394,21 @@ public class Request {
                 headers.put(key, value);
             }
         }
+    }
+
+    /**
+     * Set an attribute in the request
+     *
+     * @param key   The class type of the attribute
+     * @param value The value to set
+     */
+
+    public <T> void putAttribute(Class<T> key, T value) {
+        attributes.put(key, key.cast(value));
+    }
+
+    public <T> T getAttribute(Class<T> key) {
+        return key.cast(attributes.get(key));
     }
 }
 
