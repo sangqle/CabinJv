@@ -25,7 +25,13 @@ public class CabinWorkerPool {
         int corePoolSize = Math.max(1, poolSize);
         int maximumPoolSize = Math.max(corePoolSize, maxPoolSize);
         int maximumQueueCapacity = Math.max(0, queueCapacity);
-        threadPoolExecutor = new ThreadPoolExecutor(corePoolSize, maximumPoolSize, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(maximumQueueCapacity), new ThreadPoolExecutor.CallerRunsPolicy());
+        threadPoolExecutor = new ThreadPoolExecutor(
+                corePoolSize,
+                maximumPoolSize,
+                60L, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(maximumQueueCapacity),
+                new ThreadPoolExecutor.CallerRunsPolicy()
+        );
     }
 
     /**

@@ -30,6 +30,9 @@ import java.util.regex.Pattern;
  */
 
 public class CabinServer {
+    /**
+     * The selector for handling multiple channels.
+     */
     private Selector selector;
     private final List<Router> routers = new ArrayList<>();
     private final List<Middleware> globalMiddlewares = new ArrayList<>();
@@ -43,6 +46,11 @@ public class CabinServer {
 
     // Server configuration
     private final int port;
+    /**
+     * Worker pools for read and write operations
+     * The read worker pool is used for handling incoming requests,
+     * while the writing worker pool is used for sending responses.
+     */
     private final CabinWorkerPool readWorkerPool;
     private final CabinWorkerPool writeWorkerPool;
 
@@ -62,7 +70,15 @@ public class CabinServer {
      * @param maxPoolSize      the maximum number of threads in the thread pool
      * @param maxQueueCapacity the maximum queue capacity
      */
-    protected CabinServer(int port, int defaultPoolSize, int maxPoolSize, int maxQueueCapacity, long connectionTimeoutMillis, long idleConnectionTimeoutSeconds, boolean isLogMetrics) {
+    protected CabinServer(
+            int port,
+            int defaultPoolSize,
+            int maxPoolSize,
+            int maxQueueCapacity,
+            long connectionTimeoutMillis,
+            long idleConnectionTimeoutSeconds,
+            boolean isLogMetrics
+    ) {
         this.port = port;
         this.connectionTimeoutMillis = connectionTimeoutMillis;
         this.idleConnectionTimeoutMillis = idleConnectionTimeoutSeconds;
@@ -104,7 +120,9 @@ public class CabinServer {
                         handleAccept((ServerSocketChannel) key.channel());
                     } else if (key.isValid() && key.isReadable()) {
                         key.interestOps(key.interestOps() & ~SelectionKey.OP_READ); // Suspend read events temporarily
-                        readWorkerPool.submitTask(() -> handleReadSafely(key), task -> handleBackpressure(key));
+                        readWorkerPool.submitTask(
+                                () -> handleReadSafely(key), task -> handleBackpressure(key)
+                        );
                     }
                 } catch (Exception e) {
                     CabinLogger.error(String.format("Error handling key: %s", e.getMessage()), e);
@@ -184,7 +202,10 @@ public class CabinServer {
             workerPools.put("ReadCabinWorkerPool", readWorkerPool);
 
             // Schedule resource logging task if not already scheduled
-            if ((resourceLoggingTask == null || resourceLoggingTask.isCancelled() || resourceLoggingTask.isDone()) && !scheduler.isShutdown() && !scheduler.isTerminated()) {
+            if ((resourceLoggingTask == null || resourceLoggingTask.isCancelled() || resourceLoggingTask.isDone())
+                    && !scheduler.isShutdown()
+                    && !scheduler.isTerminated()
+            ) {
                 resourceLoggingTask = scheduler.scheduleAtFixedRate(() -> {
                     Monitor.Instance.logResourceUsage(workerPools);
                 }, 0, 30, TimeUnit.SECONDS);
@@ -192,8 +213,16 @@ public class CabinServer {
             }
 
             // Schedule idle connection cleanup task if not already scheduled
-            if ((idleConnectionTask == null || idleConnectionTask.isCancelled() || idleConnectionTask.isDone()) && !scheduler.isShutdown() && !scheduler.isTerminated()) {
-                idleConnectionTask = scheduler.scheduleAtFixedRate(this::closeIdleConnections, 0, idleConnectionTimeoutMillis, TimeUnit.MILLISECONDS);
+            if ((idleConnectionTask == null || idleConnectionTask.isCancelled() || idleConnectionTask.isDone())
+                    && !scheduler.isShutdown()
+                    && !scheduler.isTerminated()
+            ) {
+                idleConnectionTask = scheduler.scheduleAtFixedRate(
+                        this::closeIdleConnections,
+                        0,
+                        idleConnectionTimeoutMillis,
+                        TimeUnit.MILLISECONDS
+                );
                 CabinLogger.info("Idle connection cleanup task scheduled.");
             }
         } catch (Exception e) {
@@ -257,7 +286,10 @@ public class CabinServer {
             }
 
             // Persistent storage for request data
-            ByteArrayOutputStream requestBuffer = clientBuffers.computeIfAbsent(clientChannel, k -> new ByteArrayOutputStream());
+            ByteArrayOutputStream requestBuffer = clientBuffers.computeIfAbsent(
+                    clientChannel,
+                    k -> new ByteArrayOutputStream()
+            );
             int bytesRead;
 
             // Read data in chunks and accumulate
