@@ -133,36 +133,35 @@ public class Response {
      */
     public void send() {
         try {
-            // build status+headers
-            StringBuilder sb = new StringBuilder()
-                    .append("HTTP/1.1 ")
-                    .append(statusCode).append(" ")
-                    .append(HttpStatusCode.getStatusMessage(statusCode))
-                    .append("\r\n");
-            headers.forEach((k,v) ->
-                    sb.append(k).append(": ").append(v).append("\r\n")
-            );
-            cookies.values().forEach(c ->
-                    sb.append("Set-Cookie: ").append(c).append("\r\n")
-            );
+            // 1) Build headers (status‐line + headers + cookies)
+            StringBuilder hdr = new StringBuilder()
+                    .append("HTTP/1.1 ").append(statusCode).append(" ")
+                    .append(getStatusMessage(statusCode)).append("\r\n");
+            headers.forEach((k,v) -> hdr.append(k).append(": ").append(v).append("\r\n"));
+            cookies.values().forEach(c -> hdr.append("Set-Cookie: ").append(c).append("\r\n"));
+            hdr.append("\r\n");
 
+            // 2) Write headers directly to the channel, uncompressed
+            ByteBuffer headerBuf = StandardCharsets.UTF_8
+                    .encode(hdr.toString());
+            while(headerBuf.hasRemaining()) {
+                clientChannel.write(headerBuf);
+            }
+
+            // 3) Now write the body through whatever bodyOut is
             byte[] bodyBytes = body.toString()
                     .getBytes(StandardCharsets.UTF_8);
-
-            sb.append("Content-Length: ")
-                    .append(bodyBytes.length)
-                    .append("\r\n\r\n");
-
-            // **write via out only** (so your custom write() is called)
-            out.write(sb.toString().getBytes(StandardCharsets.UTF_8));
-            if (bodyBytes.length > 0) {
+            if(bodyBytes.length > 0) {
                 out.write(bodyBytes);
             }
             out.flush();
 
         } catch (IOException e) {
+            // swallow broken‐pipe / connection reset
             String msg = e.getMessage();
-            CabinLogger.error("Error writing response: " + msg, e);
+            if (!"Broken pipe".equals(msg) && !"Connection reset".equals(msg)) {
+                CabinLogger.error("Error sending response: " + msg, e);
+            }
         }
     }
 
