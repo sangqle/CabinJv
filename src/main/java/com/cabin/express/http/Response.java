@@ -4,6 +4,7 @@ import com.cabin.express.loggger.CabinLogger;
 import com.cabin.express.stream.NonBlockingOutputStream;
 import com.google.gson.Gson;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
@@ -12,6 +13,7 @@ import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.zip.GZIPOutputStream;
 
 /**
  * Represents an HTTP response.
@@ -27,6 +29,8 @@ public class Response {
     private StringBuilder body = new StringBuilder();
     private OutputStream out;
     private final SocketChannel clientChannel;
+    private boolean compressionEnabled = false;
+    private ByteArrayOutputStream bufferOut;
 
     private static final Gson gson = new Gson();
 
@@ -38,8 +42,26 @@ public class Response {
 
     public Response(SocketChannel clientChannel) {
         this.clientChannel = clientChannel;
-        this.out = new NonBlockingOutputStream(clientChannel);
+        this.bufferOut = new ByteArrayOutputStream();
+        this.out = bufferOut; // Default to in-memory buffer
     }
+
+    /**
+     * Enables compression for this response.
+     * When called, this will switch the response to use blocking I/O.
+     *
+     * @throws IOException if an I/O error occurs
+     */
+    public void enableCompression() throws IOException {
+        this.compressionEnabled = true;
+        // Switch to blocking mode when compression is enabled
+        if (!clientChannel.isBlocking()) {
+            clientChannel.configureBlocking(true);
+        }
+        // Initialize the real output stream only when needed
+        this.out = Channels.newOutputStream(clientChannel);
+    }
+
 
     public void setStatusCode(int statusCode) {
         this.statusCode = statusCode;
@@ -126,41 +148,66 @@ public class Response {
     }
 
     /**
-     * Writes the specified object as JSON to the response body.
-     *
-     * @param content The object to write as JSON.
-     * @param headers The headers to set in the response.
+     * Sends the response to the client.
      */
     public void send() {
         try {
-            // 1) Build headers (status‐line + headers + cookies)
+            // Build headers
             StringBuilder hdr = new StringBuilder()
                     .append("HTTP/1.1 ").append(statusCode).append(" ")
                     .append(getStatusMessage(statusCode)).append("\r\n");
-            headers.forEach((k,v) -> hdr.append(k).append(": ").append(v).append("\r\n"));
+
+            // Add Content-Length if we know it (non-compressed case)
+            if (!compressionEnabled) {
+                byte[] bodyBytes = body.toString().getBytes(StandardCharsets.UTF_8);
+                hdr.append("Content-Length: ").append(bodyBytes.length).append("\r\n");
+            }
+
+            headers.forEach((k, v) -> hdr.append(k).append(": ").append(v).append("\r\n"));
             cookies.values().forEach(c -> hdr.append("Set-Cookie: ").append(c).append("\r\n"));
             hdr.append("\r\n");
 
-            // 2) Write headers directly to the channel, uncompressed
-            ByteBuffer headerBuf = StandardCharsets.UTF_8
-                    .encode(hdr.toString());
-            while(headerBuf.hasRemaining()) {
-                clientChannel.write(headerBuf);
-            }
+            if (compressionEnabled) {
+                // Blocking I/O path - headers already have Content-Encoding: gzip
+                out.write(hdr.toString().getBytes(StandardCharsets.UTF_8));
 
-            // 3) Now write the body through whatever bodyOut is
-            byte[] bodyBytes = body.toString()
-                    .getBytes(StandardCharsets.UTF_8);
-            if(bodyBytes.length > 0) {
-                out.write(bodyBytes);
-            }
-            out.flush();
+                // Now write the body
+                byte[] bodyBytes = body.toString().getBytes(StandardCharsets.UTF_8);
+                if (bodyBytes.length > 0) {
+                    out.write(bodyBytes);
+                }
 
+                // Clean up if using GZIPOutputStream
+                if (out instanceof GZIPOutputStream) {
+                    ((GZIPOutputStream) out).finish();
+                }
+                out.flush();
+
+                // Don't close the output stream here as it might close the underlying socket
+            } else {
+                // Non-blocking I/O path
+                ByteBuffer headerBuf = ByteBuffer.wrap(hdr.toString().getBytes(StandardCharsets.UTF_8));
+                ByteBuffer bodyBuf = ByteBuffer.wrap(body.toString().getBytes(StandardCharsets.UTF_8));
+
+                // Write headers and body in sequence
+                while (headerBuf.hasRemaining()) {
+                    clientChannel.write(headerBuf);
+                }
+
+                while (bodyBuf.hasRemaining()) {
+                    clientChannel.write(bodyBuf);
+                }
+            }
         } catch (IOException e) {
-            // swallow broken‐pipe / connection reset
+            // swallow broken-pipe / connection reset
             String msg = e.getMessage();
             if (!"Broken pipe".equals(msg) && !"Connection reset".equals(msg)) {
                 CabinLogger.error("Error sending response: " + msg, e);
+            }
+        } finally {
+            // Reset the buffer if we're using in-memory buffering
+            if (bufferOut != null) {
+                bufferOut.reset();
             }
         }
     }
@@ -187,10 +234,21 @@ public class Response {
     public OutputStream getOutputStream() {
         return out;
     }
+
     public void setOutputStream(OutputStream out) {
         this.out = out;
     }
-    public Map<String,String> getHeaders() {
+
+    public Map<String, String> getHeaders() {
         return headers;
     }
+
+    public void addHeader(String key, String value) {
+        headers.put(key, value);
+    }
+
+    public boolean isCompressionEnabled() {
+        return compressionEnabled;
+    }
+
 }

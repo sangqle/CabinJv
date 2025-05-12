@@ -5,6 +5,7 @@ import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
 import com.cabin.express.interfaces.Middleware;
 import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.middleware.MiddlewareRegistry;
 import com.cabin.express.router.Router;
 import com.cabin.express.worker.CabinWorkerPool;
 
@@ -448,16 +449,16 @@ public class CabinServer {
     /**
      * Add a global middleware to all routers
      *
-     * @param middleware
-     * @return
-     * @throws IllegalArgumentException
+     * @param middleware the middleware to add
      */
     public void use(Middleware middleware) {
         globalMiddlewares.add(middleware);
+        MiddlewareRegistry.register(middleware);
         for (Router router : routers) {
             router.use(middleware);
         }
     }
+
 
     private void closeIdleConnections() {
         long now = System.currentTimeMillis();

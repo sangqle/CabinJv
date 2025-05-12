@@ -3,7 +3,7 @@ package com.cabin.express.middleware;
 import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
 import com.cabin.express.interfaces.Middleware;
-import com.cabin.express.stream.SimpleChunkedOutputStream;
+import com.cabin.express.loggger.CabinLogger;
 
 
 import java.io.IOException;
@@ -11,34 +11,35 @@ import java.util.zip.GZIPOutputStream;
 
 public class GzipMiddleware implements Middleware {
     @Override
-    public void apply(Request req, Response res, MiddlewareChain next) throws IOException {
-        String accept = req.getHeaders().getOrDefault("Accept-Encoding", "");
-        if (!accept.contains("gzip")) {
-            next.next(req, res);
-            return;
-        }
+    public void apply(Request req, Response res, MiddlewareChain chain) throws IOException {
+        String acceptEncoding = req.getHeader("Accept-Encoding");
 
-        // Tell client we’ll gzip + chunk the BODY
-        res.getHeaders().put("Content-Encoding", "gzip");
-        res.getHeaders().put("Transfer-Encoding", "chunked");
-        res.getHeaders().put("Vary", "Accept-Encoding");
-        res.getHeaders().remove("Content-Length");
+        if (acceptEncoding != null && acceptEncoding.contains("gzip")) {
+            try {
+                // Signal to response that compression is needed
+                res.enableCompression();
 
-        // Wrap only the body stream
-        SimpleChunkedOutputStream chunked =
-                new SimpleChunkedOutputStream(res.getOutputStream());
-        GZIPOutputStream gzip =
-                new GZIPOutputStream(chunked, true);
-        res.setOutputStream(gzip);
+                // Create and set the GZIP output stream
+                GZIPOutputStream gzipOut = new GZIPOutputStream(res.getOutputStream());
+                res.setOutputStream(gzipOut);
 
-        try {
-            next.next(req, res);
-        } finally {
-            // clean up, swallowing broken-pipe
-            try { gzip.finish(); } catch(IOException ignore){}
-            try { gzip.close();  } catch(IOException ignore){}
-            try { chunked.finish(); } catch(IOException ignore){}
+                // Set the appropriate header
+                res.addHeader("Content-Encoding", "gzip");
+
+                // Process the chain
+                chain.next(req, res);
+
+                // Finalize GZIP data
+                gzipOut.finish();
+                gzipOut.flush();
+            } catch (IOException e) {
+                CabinLogger.error("Error setting up GZIP compression: " + e.getMessage(), e);
+                // Continue without compression as fallback
+                chain.next(req, res);
+            }
+        } else {
+            // No compression requested, just process the chain
+            chain.next(req, res);
         }
     }
 }
-

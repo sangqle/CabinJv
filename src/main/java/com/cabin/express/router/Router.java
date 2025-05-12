@@ -6,6 +6,7 @@ import com.cabin.express.http.Response;
 import com.cabin.express.interfaces.Handler;
 import com.cabin.express.interfaces.Middleware;
 import com.cabin.express.middleware.MiddlewareChain;
+import com.cabin.express.middleware.MiddlewareRegistry;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -146,6 +147,7 @@ public class Router {
      */
     public void use(Middleware middleware) {
         middlewares.add(middleware);
+        MiddlewareRegistry.register(middleware);
     }
 
     /**
