@@ -25,6 +25,14 @@ public class HServer {
             json.addProperty("message", "Hello, World!");
             res.send(json);
         });
+
+        router.get("/large", (req, res) -> {
+            StringBuilder largeResponse = new StringBuilder();
+            for (int i = 0; i < 100000; i++) {
+                largeResponse.append("Hello, World! ");
+            }
+            res.send(largeResponse.toString());
+        });
         server.use(new GzipMiddleware());
         server.use(router);
         server.use(AppRouter.router);
