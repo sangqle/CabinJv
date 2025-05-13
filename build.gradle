@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'com.cabin.express'
-version = '11.0.3'
+version = '11.0.5'
 
 publishing {
     repositories {
@@ -48,6 +48,10 @@ dependencies {
 
     // Tests dependencies
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
+
+    // http
+    implementation 'org.apache.httpcomponents.client5:httpclient5:5.4.4'
+    implementation 'org.apache.httpcomponents.core5:httpcore5:5.3.4'
 }
 
 test {
