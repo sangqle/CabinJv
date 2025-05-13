@@ -5,6 +5,7 @@ import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
 import com.cabin.express.interfaces.Middleware;
 import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.middleware.MiddlewareChain;
 import com.cabin.express.middleware.MiddlewareRegistry;
 import com.cabin.express.router.Router;
 import com.cabin.express.worker.CabinWorkerPool;
@@ -333,20 +334,23 @@ public class CabinServer {
             Request request = new Request(byteArrayOutputStream);
             Response response = new Response(clientChannel);
 
-            boolean handled = false;
-            for (Router router : routers) {
-                if (router.handleRequest(request, response)) {
-                    handled = true;
-                    break;
+            // Run global middleware chain first
+            MiddlewareChain globalChain = new MiddlewareChain(globalMiddlewares, (req, res) -> {
+                boolean handled = false;
+                for (Router router : routers) {
+                    if (router.handleRequest(req, res)) {
+                        handled = true;
+                        break;
+                    }
                 }
-            }
+                if (!handled) {
+                    res.setStatusCode(404);
+                    res.writeBody("Not Found");
+                    res.send();
+                }
+            });
 
-            if (!handled) {
-                response.setStatusCode(404);
-                response.writeBody("Not Found");
-                response.send();
-            }
-
+            globalChain.next(request, response);
         } catch (IOException e) {
             CabinLogger.error("Error processing client request: " + e.getMessage(), e);
             sendInternalServerError(clientChannel);

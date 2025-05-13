@@ -134,6 +134,35 @@ public class Response {
     }
 
     /**
+     * Writes binary data to the response body.
+     * This is particularly useful for serving files and other binary content.
+     *
+     * @param buffer The byte array containing the data to write
+     * @param offset The starting position in the buffer
+     * @param length The number of bytes to write
+     */
+    public void write(byte[] buffer, int offset, int length) {
+        try {
+            // Convert the current StringBuilder content to bytes if needed
+            if (body.length() > 0) {
+                if (bufferOut == null) {
+                    bufferOut = new ByteArrayOutputStream();
+                }
+                bufferOut.write(body.toString().getBytes(StandardCharsets.UTF_8));
+                body = new StringBuilder(); // Reset the StringBuilder
+            }
+
+            // Write the binary data to the buffer
+            if (bufferOut == null) {
+                bufferOut = new ByteArrayOutputStream();
+            }
+            bufferOut.write(buffer, offset, length);
+        } catch (IOException e) {
+            CabinLogger.error("Error writing binary data to response: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * Sends the response to the client.
      */
     public void send() {
@@ -144,16 +173,31 @@ public class Response {
 
             byte[] responseBodyBytes;
 
-            if (compressionEnabled) {
-                // Compress the body using GZIP in memory
-                ByteArrayOutputStream compressedOut = new ByteArrayOutputStream();
-                try (GZIPOutputStream gzipOut = new GZIPOutputStream(compressedOut)) {
-                    gzipOut.write(body.toString().getBytes(StandardCharsets.UTF_8));
+            // Use either bufferOut or the string body
+            if (bufferOut != null && bufferOut.size() > 0) {
+                if (compressionEnabled) {
+                    // Compress the body using GZIP in memory
+                    ByteArrayOutputStream compressedOut = new ByteArrayOutputStream();
+                    try (GZIPOutputStream gzipOut = new GZIPOutputStream(compressedOut)) {
+                        gzipOut.write(bufferOut.toByteArray());
+                    }
+                    responseBodyBytes = compressedOut.toByteArray();
+                    headers.put("Content-Encoding", "gzip");
+                } else {
+                    responseBodyBytes = bufferOut.toByteArray();
                 }
-                responseBodyBytes = compressedOut.toByteArray();
-                headers.put("Content-Encoding", "gzip");
             } else {
-                responseBodyBytes = body.toString().getBytes(StandardCharsets.UTF_8);
+                if (compressionEnabled) {
+                    // Compress the body using GZIP in memory
+                    ByteArrayOutputStream compressedOut = new ByteArrayOutputStream();
+                    try (GZIPOutputStream gzipOut = new GZIPOutputStream(compressedOut)) {
+                        gzipOut.write(body.toString().getBytes(StandardCharsets.UTF_8));
+                    }
+                    responseBodyBytes = compressedOut.toByteArray();
+                    headers.put("Content-Encoding", "gzip");
+                } else {
+                    responseBodyBytes = body.toString().getBytes(StandardCharsets.UTF_8);
+                }
             }
 
             hdr.append("Content-Length: ").append(responseBodyBytes.length).append("\r\n");
