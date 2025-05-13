@@ -42,14 +42,17 @@ public class StaticMiddleware implements Middleware {
     public void apply(Request req, Response res, MiddlewareChain next) throws IOException {
         String requestPath = req.getPath();
 
-        // Skip if not a static file request
-        if (!requestPath.startsWith(urlPrefix)) {
+        // Skip if the request is for an API route
+        if (requestPath.startsWith("/api/")) {
             next.next(req, res);
             return;
         }
 
         // Get relative path (remove prefix)
-        String relPath = requestPath.substring(urlPrefix.length());
+        String relPath = requestPath.startsWith(urlPrefix)
+                ? requestPath.substring(urlPrefix.length())
+                : requestPath;
+
         // If empty or ends with /, look for defaultFileName
         if (relPath.isEmpty() || relPath.endsWith("/")) {
             relPath = relPath + defaultFileName;
@@ -68,8 +71,12 @@ public class StaticMiddleware implements Middleware {
 
         // Check if file exists and is not a directory
         if (Files.isDirectory(filePath) || !Files.exists(filePath)) {
-            next.next(req, res); // Not found, pass to next middleware/handler
-            return;
+            // Serve the default index.html for client-side routing
+            filePath = rootDirectory.resolve(defaultFileName).normalize();
+            if (!Files.exists(filePath)) {
+                next.next(req, res); // Not found, pass to next middleware/handler
+                return;
+            }
         }
 
         try {

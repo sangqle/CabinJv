@@ -21,6 +21,7 @@ public class HServer {
                 .build();
 
         Router router = new Router();
+        router.setPrefix("/api/");
 
 
         router.get("/", (req, res) -> {
