@@ -4,6 +4,10 @@
 
 CabinJ is a high-performance, lightweight HTTP server framework built with Java NIO for efficient non-blocking I/O operations. It provides a simple yet powerful API for creating web applications with features like routing, middleware support, and efficient request/response handling.
 
+## 📦 Releases
+
+See [RELEASE.md](RELEASE.md) for full release history and upgrade notes.
+
 ## Framework Architecture
 
 ### Core Components
@@ -227,3 +231,4 @@ server.start();
 5. Contribute documentation improvements
 
 By following this guide, you'll be able to understand, use, and contribute to the CabinJ framework efficiently.
+
