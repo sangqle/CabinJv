@@ -6,7 +6,6 @@ import com.cabin.express.http.Response;
 import com.cabin.express.interfaces.Middleware;
 import com.cabin.express.loggger.CabinLogger;
 import com.cabin.express.middleware.MiddlewareChain;
-import com.cabin.express.middleware.MiddlewareRegistry;
 import com.cabin.express.router.Router;
 import com.cabin.express.worker.CabinWorkerPool;
 
@@ -457,7 +456,6 @@ public class CabinServer {
      */
     public void use(Middleware middleware) {
         globalMiddlewares.add(middleware);
-        MiddlewareRegistry.register(middleware);
         for (Router router : routers) {
             router.use(middleware);
         }
