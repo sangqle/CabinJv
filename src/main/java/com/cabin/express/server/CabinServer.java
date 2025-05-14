@@ -3,6 +3,7 @@ package com.cabin.express.server;
 import com.cabin.express.exception.GlobalExceptionHandler;
 import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
+import com.cabin.express.interfaces.Handler;
 import com.cabin.express.interfaces.Middleware;
 import com.cabin.express.loggger.CabinLogger;
 import com.cabin.express.middleware.MiddlewareChain;
@@ -333,23 +334,23 @@ public class CabinServer {
             Request request = new Request(byteArrayOutputStream);
             Response response = new Response(clientChannel);
 
-            // Run global middleware chain first
-            MiddlewareChain globalChain = new MiddlewareChain(globalMiddlewares, (req, res) -> {
-                boolean handled = false;
-                for (Router router : routers) {
-                    if (router.handleRequest(req, res)) {
-                        handled = true;
-                        break;
-                    }
-                }
-                if (!handled) {
-                    res.setStatusCode(404);
-                    res.writeBody("Not Found");
-                    res.send();
-                }
-            });
+            // Create final handler that handles case when no route matches
+            Handler finalHandler = (req, res) -> {
+                res.setStatusCode(404);
+                res.writeBody("Not Found");
+                res.send();
+            };
 
-            globalChain.next(request, response);
+            // Create combined middleware list
+            List<Middleware> allMiddleware = new ArrayList<>(globalMiddlewares);
+
+            // Add routers as middleware
+            allMiddleware.addAll(routers);
+
+            // Create and execute the middleware chain
+            MiddlewareChain chain = new MiddlewareChain(allMiddleware, finalHandler);
+            chain.next(request, response);
+
         } catch (IOException e) {
             CabinLogger.error("Error processing client request: " + e.getMessage(), e);
             sendInternalServerError(clientChannel);
@@ -421,31 +422,38 @@ public class CabinServer {
     /**
      * Add a router to the server
      *
-     * @param router
-     * @throws IllegalArgumentException
+     * @param router the router to add
+     * @throws IllegalArgumentException if router is null or already added
      */
     public void use(Router router) {
         // Validate the router
         if (router == null) {
             throw new IllegalArgumentException("Router cannot be null");
         }
-        // Validate the router to ensure not adding the same router multiple times
+
+        // Check for duplicate router
         if (routers.contains(router)) {
             throw new IllegalArgumentException("Router already added");
         }
 
-        // Validate the router with the same path
-        for (Router r : routers) {
-            Set<String> endpoint = r.getEndpoint();
-            for (String path : endpoint) {
-                if (router.getEndpoint().contains(path)) {
-                    throw new IllegalArgumentException(String.format("Router with path %s already exists", path));
+        // Check for conflicting routes
+        for (Router existingRouter : routers) {
+            Set<String> existingEndpoints = existingRouter.getEndpoint();
+            Set<String> newEndpoints = router.getEndpoint();
+
+            for (String newPath : newEndpoints) {
+                if (existingEndpoints.contains(newPath)) {
+                    throw new IllegalArgumentException(
+                            String.format("Conflicting route found: %s", newPath));
                 }
             }
         }
+
+        // Apply global middleware to the router
         for (Middleware middleware : globalMiddlewares) {
             router.use(middleware);
         }
+
         routers.add(router);
     }
 

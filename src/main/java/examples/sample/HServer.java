@@ -21,7 +21,7 @@ public class HServer {
                 .build();
 
         Router router = new Router();
-        router.setPrefix("/api/");
+        router.setPrefix("/api");
 
 
         router.get("/", (req, res) -> {
@@ -40,9 +40,16 @@ public class HServer {
 
         // Static file serving
         server.use(new GzipMiddleware());
-        server.use(new StaticMiddleware("public", "/"));
         server.use(router);
-        server.use(AppRouter.router);
+
+
+        // Create static middleware and exclude API routers
+        StaticMiddleware staticMiddleware = new StaticMiddleware("public", "/")
+                .excludeRouters(router);
+
+        // Add static middleware last
+        server.use(staticMiddleware);
+
         server.start();
         logger.info("Server started at http://localhost:8080");
     }
