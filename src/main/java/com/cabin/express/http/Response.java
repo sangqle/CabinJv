@@ -173,31 +173,24 @@ public class Response {
 
             byte[] responseBodyBytes;
 
-            // Use either bufferOut or the string body
+            // Determine the response body source: bufferOut (binary) or body (text)
+            byte[] rawBodyBytes;
             if (bufferOut != null && bufferOut.size() > 0) {
-                if (compressionEnabled) {
-                    // Compress the body using GZIP in memory
-                    ByteArrayOutputStream compressedOut = new ByteArrayOutputStream();
-                    try (GZIPOutputStream gzipOut = new GZIPOutputStream(compressedOut)) {
-                        gzipOut.write(bufferOut.toByteArray());
-                    }
-                    responseBodyBytes = compressedOut.toByteArray();
-                    headers.put("Content-Encoding", "gzip");
-                } else {
-                    responseBodyBytes = bufferOut.toByteArray();
-                }
+                rawBodyBytes = bufferOut.toByteArray();
             } else {
-                if (compressionEnabled) {
-                    // Compress the body using GZIP in memory
-                    ByteArrayOutputStream compressedOut = new ByteArrayOutputStream();
-                    try (GZIPOutputStream gzipOut = new GZIPOutputStream(compressedOut)) {
-                        gzipOut.write(body.toString().getBytes(StandardCharsets.UTF_8));
-                    }
-                    responseBodyBytes = compressedOut.toByteArray();
-                    headers.put("Content-Encoding", "gzip");
-                } else {
-                    responseBodyBytes = body.toString().getBytes(StandardCharsets.UTF_8);
+                rawBodyBytes = body.toString().getBytes(StandardCharsets.UTF_8);
+            }
+
+            if (compressionEnabled) {
+                // Compress the body using GZIP in memory
+                ByteArrayOutputStream compressedOut = new ByteArrayOutputStream();
+                try (GZIPOutputStream gzipOut = new GZIPOutputStream(compressedOut)) {
+                    gzipOut.write(rawBodyBytes);
                 }
+                responseBodyBytes = compressedOut.toByteArray();
+                headers.put("Content-Encoding", "gzip");
+            } else {
+                responseBodyBytes = rawBodyBytes;
             }
 
             hdr.append("Content-Length: ").append(responseBodyBytes.length).append("\r\n");
