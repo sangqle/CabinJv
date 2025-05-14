@@ -247,6 +247,10 @@ public class Response {
         headers.put(key, value);
     }
 
+    public String getHeader(String key) {
+        return headers.get(key);
+    }
+
     public boolean isCompressionEnabled() {
         return compressionEnabled;
     }

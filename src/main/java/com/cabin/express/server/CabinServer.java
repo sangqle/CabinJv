@@ -62,6 +62,10 @@ public class CabinServer {
     private volatile boolean isRunning = true; // Flag to control the event loop
 
     private volatile boolean isLogMetrics = false; // Flag to control the event loop
+    /**
+     * Flag to track if server is stopped completely
+     */
+    private volatile boolean isStopped = false;
 
     /**
      * Creates a new server with the specified port number, default pool size,
@@ -96,6 +100,10 @@ public class CabinServer {
      * @throws IOException if an I/O error occurs
      */
     public void start() throws IOException {
+        // Reset stop flag
+        isStopped = false;
+        isRunning = true;
+
         initializeServer();
         CabinLogger.info("Server started on port " + port);
 
@@ -537,8 +545,12 @@ public class CabinServer {
             CabinLogger.error("Error shutting down scheduler: " + e.getMessage(), e);
         }
 
+        // Mark server as stopped
+        isStopped = true;
         CabinLogger.info("Server shutdown complete.");
     }
+
+
 
 
     /**
@@ -547,13 +559,63 @@ public class CabinServer {
      * This method signals the event loop to exit and shuts down the server.
      * The server will stop accepting new connections and close all active connections.
      * The server will also shut down the worker pool and scheduler.
-     * This method is non-blocking and returns immediately.
+     * This method blocks until the server is fully stopped or timeout occurs.
+     *
+     * @return true if server stopped successfully, false if timeout occurred
      */
-    public void stop() {
+    public boolean stop() {
+        return stop(5000); // Default timeout of 5 seconds
+    }
+
+    /**
+     * Stop the server with a specified timeout
+     *
+     * @param timeoutMillis maximum time to wait for server to stop in milliseconds
+     * @return true if server stopped successfully, false if timeout occurred
+     */
+    public boolean stop(long timeoutMillis) {
         CabinLogger.info("Stop signal received. Shutting down server...");
-        isRunning = false; // Signal the event loop to exit
-        if (selector != null) {
-            selector.wakeup(); // Wake up the selector to process the change
+
+        // Create a new thread to handle shutdown if we're on the server thread
+        Thread shutdownThread = new Thread(() -> {
+            // Signal the event loop to exit
+            isRunning = false;
+
+            // Wake up the selector to process the change
+            if (selector != null) {
+                selector.wakeup();
+            }
+
+            // Wait for server to fully stop
+            long startTime = System.currentTimeMillis();
+            while (!isStopped && (System.currentTimeMillis() - startTime) < timeoutMillis) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+
+            // If server didn't stop in time, force shutdown
+            if (!isStopped) {
+                CabinLogger.warn("Server did not stop gracefully within timeout, forcing shutdown...");
+                shutdown();
+                isStopped = true;
+            }
+        });
+
+        shutdownThread.setDaemon(true);
+        shutdownThread.start();
+
+        // Wait for shutdown to complete
+        try {
+            shutdownThread.join(timeoutMillis);
+            return isStopped;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            CabinLogger.error("Interrupted while waiting for server to stop", e);
+            return false;
         }
     }
 }

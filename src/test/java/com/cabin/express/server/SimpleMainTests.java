@@ -1,15 +1,21 @@
 package com.cabin.express.server;
 
 import com.cabin.express.router.Router;
+import com.cabin.express.util.ServerTestUtil;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+
 public class SimpleMainTests {
-//    @Test
+    @Test
     void testServer() throws IOException {
+        // Use dynamic port allocation
+        int port = ServerTestUtil.findAvailablePort();
+        
         CabinServer server = new ServerBuilder()
-                .setPort(8080)
+                .setPort(port)
                 .enableLogMetrics(false)
                 .build();
 
@@ -19,7 +25,20 @@ public class SimpleMainTests {
             res.send();
         });
         server.use(router);
-        server.start();
-        System.err.println("Server started at http://localhost:8080");
+        
+        // Start server in background
+        Thread serverThread = ServerTestUtil.startServerInBackground(server);
+        String baseUrl = "http://localhost:" + port;
+        System.err.println("Server started at " + baseUrl);
+        
+        // Wait for server to be ready
+        boolean isReady = ServerTestUtil.waitForServerReady(baseUrl, "/", 5000);
+        assertThat(isReady).isTrue();
+        
+        // Do some operations with the server
+        
+        // Stop the server
+        boolean stopped = ServerTestUtil.stopServer(server, 5000);
+        assertThat(stopped).isTrue();
     }
 }
