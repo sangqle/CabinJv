@@ -1,6 +1,7 @@
 package examples.sample;
 
 import com.cabin.express.middleware.GzipMiddleware;
+import com.cabin.express.middleware.StaticMiddleware;
 import com.cabin.express.router.Router;
 import com.cabin.express.server.CabinServer;
 import com.cabin.express.server.ServerBuilder;
@@ -20,6 +21,9 @@ public class HServer {
                 .build();
 
         Router router = new Router();
+        router.setPrefix("/api/");
+
+
         router.get("/", (req, res) -> {
             JsonObject json = new JsonObject();
             json.addProperty("message", "Hello, World!");
@@ -33,7 +37,10 @@ public class HServer {
             }
             res.send(largeResponse.toString());
         });
+
+        // Static file serving
         server.use(new GzipMiddleware());
+        server.use(new StaticMiddleware("public", "/"));
         server.use(router);
         server.use(AppRouter.router);
         server.start();
