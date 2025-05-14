@@ -43,9 +43,9 @@ public class HServer {
         server.use(router);
 
 
-        // Create static middleware and exclude API routers
+        // Create static middleware and exclude API paths using the new pattern
         StaticMiddleware staticMiddleware = new StaticMiddleware("public", "/")
-                .excludeRouters(router);
+                .excludePrefixes("/api/", "/graph/");
 
         // Add static middleware last
         server.use(staticMiddleware);
