@@ -1,5 +1,9 @@
 package com.cabin.express.performance;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import com.cabin.express.debug.ThreadSafetyDebugMiddleware;
+import com.cabin.express.loggger.CabinLogger;
 import com.cabin.express.router.Router;
 import com.cabin.express.server.CabinServer;
 import com.cabin.express.server.ServerBuilder;
@@ -10,6 +14,8 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -17,18 +23,22 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import org.slf4j.LoggerFactory;
+
 @Tag("performance")
 public class LoadTest {
+
+
 
     private CabinServer server;
     private int port;
@@ -39,6 +49,11 @@ public class LoadTest {
 
     @BeforeEach
     void setUp() throws IOException {
+
+        ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger)
+                LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+        root.setLevel(Level.DEBUG);
+
         // Setup thread pool for parallel requests
         executor = Executors.newFixedThreadPool(50);
         port = ServerTestUtil.findAvailablePort();
@@ -50,6 +65,7 @@ public class LoadTest {
                 .setDefaultPoolSize(20)
                 .setMaxPoolSize(50)
                 .build();
+
 
         Router router = new Router();
 
@@ -78,6 +94,9 @@ public class LoadTest {
         });
 
         server.use(router);
+
+        // Middleware for debugging thread safety
+        server.use(new ThreadSafetyDebugMiddleware());
 
         // Start server in background thread
         serverThread = ServerTestUtil.startServerInBackground(server);
@@ -203,6 +222,181 @@ public class LoadTest {
 
         assertThat(responses).hasSize(totalRequests);
         assertThat(responses).allMatch(response -> response.statusCode() == 200);
+    }
+
+    @Test
+    void shouldDemonstrateThreadUnsafetyInHashMapUsage() throws Exception {
+        // 1. Create a test endpoint that modifies the response headers/cookies in a way 
+        // that could cause thread safety issues
+        Router router = new Router();
+        router.get("/thread-test", (req, res) -> {
+            // Simulate some processing delay to increase chance of race conditions
+            try {
+                Thread.sleep(5);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            
+            // Add multiple headers and cookies - operations that use HashMap internally
+            for (int i = 0; i < 10; i++) {
+                res.setHeader("X-Test-Header-" + i, "value-" + i);
+                res.setCookie("test-cookie-" + i, "cookie-value-" + i);
+            }
+            
+            res.send("Thread test complete");
+        });
+        
+        server.use(router);
+        
+        // 2. Set up a high-concurrency test
+        int concurrentRequests = 200;
+        ExecutorService executor = Executors.newFixedThreadPool(50);
+        HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+        
+        List<CompletableFuture<HttpResponse<String>>> futures = new ArrayList<>();
+        
+        // 3. Make many concurrent requests to the same endpoint
+        for (int i = 0; i < concurrentRequests; i++) {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/thread-test"))
+                    .GET()
+                    .build();
+            
+            CompletableFuture<HttpResponse<String>> future =
+                    client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+            futures.add(future);
+        }
+        
+        // 4. Wait for all requests to complete
+        CompletableFuture<Void> allFutures =
+                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+        
+        try {
+            allFutures.get(30, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            // Catch and log any exceptions - race conditions might cause exceptions
+            System.err.println("Exception during concurrent requests: " + e.getMessage());
+        }
+        
+        // 5. Check results - count successful vs failed responses
+        long successfulResponses = futures.stream()
+                .filter(future -> !future.isCompletedExceptionally())
+                .count();
+        
+        System.out.println("Successful responses: " + successfulResponses + " out of " + concurrentRequests);
+        
+        // Note: In a thread-unsafe situation, we expect some requests to fail or have incomplete/corrupted responses
+    }
+
+    @Test
+    void shouldTriggerConcurrentModificationException() throws Exception {
+        // Create a test endpoint that demonstrates HashMap's thread-unsafety
+        Router router = new Router();
+        router.get("/concurrent-modification", (req, res) -> {
+            // Get a specific query parameter to make each request unique
+            String requestId = req.getQueryParam("id");
+            
+            // Add a base set of headers
+            for (int i = 0; i < 5; i++) {
+                res.setHeader("X-Base-Header-" + i, "value-" + i);
+            }
+            
+            // Create a new thread that will add more headers while we iterate
+            Thread modifier = new Thread(() -> {
+                // Name the thread to help with debugging
+                Thread.currentThread().setName("Header-Modifier-" + requestId);
+                
+                // Log that we're starting to modify headers
+                CabinLogger.info("Starting header modification in thread " + Thread.currentThread().getName());
+                
+                for (int i = 0; i < 20; i++) {
+                    res.setHeader("X-Dynamic-Header-" + requestId + "-" + i, "value");
+                    try {
+                        Thread.sleep(1); // Small sleep to increase chance of race condition
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+                
+                CabinLogger.info("Finished header modification in thread " + Thread.currentThread().getName());
+            });
+            
+            // Start modifying headers in another thread
+            modifier.start();
+            
+            // Meanwhile, try to iterate over and access the headers (will potentially cause ConcurrentModificationException)
+            StringBuilder result = new StringBuilder();
+            try {
+                // Name the current thread for better log analysis
+                Thread.currentThread().setName("Header-Iterator-" + requestId);
+                
+                // Log that we're starting to iterate
+                CabinLogger.info("Starting header iteration in thread " + Thread.currentThread().getName());
+                
+                Map<String, String> headers = res.getHeaders();
+                CabinLogger.info("Retrieved headers map with " + headers.size() + " entries");
+                
+                for (Map.Entry<String, String> entry : headers.entrySet()) {
+                    result.append(entry.getKey()).append("=").append(entry.getValue()).append(";");
+                    // Small sleep to increase chance of concurrent modification
+                    Thread.sleep(2);
+                }
+                
+                CabinLogger.info("Completed header iteration without exceptions");
+                res.send("Headers processed: " + result.toString());
+            } catch (Exception e) {
+                // Enhanced logging for the exception
+                StringWriter sw = new StringWriter();
+                e.printStackTrace(new PrintWriter(sw));
+                
+                CabinLogger.error("Exception in request handler: " + 
+                                 e.getClass().getName() + " - " + e.getMessage() + 
+                                 "\nThread: " + Thread.currentThread().getName() +
+                                 "\nStack trace:\n" + sw.toString(), e);
+                
+                // Catch the exception and report it in the response
+                res.send("Exception: " + e.getClass().getSimpleName() + " - " + e.getMessage() + 
+                         " | Thread: " + Thread.currentThread().getName());
+            }
+            
+            // Wait for the modifier thread to complete
+            try {
+                modifier.join(1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        
+        server.use(router);
+        
+        // Make multiple concurrent requests to increase chance of thread safety issues
+        int concurrentRequests = 50;
+        List<CompletableFuture<HttpResponse<String>>> futures = new ArrayList<>();
+        HttpClient client = HttpClient.newBuilder().build();
+        
+        for (int i = 0; i < concurrentRequests; i++) {
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/concurrent-modification?id=" + i))
+                .GET()
+                .build();
+            
+            futures.add(client.sendAsync(request, HttpResponse.BodyHandlers.ofString()));
+        }
+        
+        // Wait for all requests and count how many hit exceptions
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+        // Log the results
+        long exceptionCount = futures.stream()
+            .map(CompletableFuture::join)
+            .map(HttpResponse::body)
+            .filter(body -> body.startsWith("Exception:"))
+            .count();
+        
+        // Add assertion to make sure we're actually detecting thread-safety issues
+        assertThat(exceptionCount).as("Should have detected some thread-safety issues").isEqualTo(0);
     }
 
     // Helper method for CPU-intensive calculation

@@ -8,8 +8,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.GZIPOutputStream;
 
 /**
@@ -21,8 +21,8 @@ import java.util.zip.GZIPOutputStream;
  */
 public class Response {
     private int statusCode = 200;
-    private Map<String, String> headers = new HashMap<>();
-    private Map<String, String> cookies = new HashMap<>();
+    private Map<String, String> headers = new ConcurrentHashMap<>();
+    private Map<String, String> cookies = new ConcurrentHashMap<>();
     private StringBuilder body = new StringBuilder();
     private final SocketChannel clientChannel;
     private boolean compressionEnabled = false;
@@ -54,7 +54,7 @@ public class Response {
     }
 
     public void setHeader(String key, String value) {
-        headers.put(key, value);
+            headers.put(key, value);
     }
 
     public void setCookie(String name, String value) {
