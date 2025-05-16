@@ -9,17 +9,18 @@ import com.cabin.express.loggger.CabinLogger;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Router implements Middleware {
     private final String name = "Router";
     private String prefix = "";
-    private final Map<String, List<Route>> routes;
+    private final ConcurrentHashMap<String, List<Route>> routes;
     private final List<Middleware> middlewares;
 
     public Router() {
-        this.routes = new HashMap<>();
+        this.routes = new ConcurrentHashMap<>();
         this.middlewares = new ArrayList<>();
     }
 

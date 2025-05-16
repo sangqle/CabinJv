@@ -39,7 +39,7 @@ public class CabinServer {
     private final List<Router> routers = new ArrayList<>();
     private final List<Middleware> globalMiddlewares = new ArrayList<>();
     private final Map<SocketChannel, Long> connectionLastActive = new ConcurrentHashMap<>();
-    private final Map<SocketChannel, ByteArrayOutputStream> clientBuffers = new HashMap<>();
+    private final Map<SocketChannel, ByteArrayOutputStream> clientBuffers = new ConcurrentHashMap<>();
 
     // Resource logging task
     private ScheduledFuture<?> resourceLoggingTask;
