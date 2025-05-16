@@ -7,6 +7,7 @@ import java.io.*;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Represents an HTTP request.
@@ -19,13 +20,13 @@ public class Request {
     private String method;
     private String path;
     private String body;
-    private Map<String, Object> bodyAsJson = new HashMap<>();
-    private Map<String, String> queryParams = new HashMap<>();
-    private Map<String, String> pathParams = new HashMap<>();
+    private Map<String, Object> bodyAsJson = new ConcurrentHashMap<>();
+    private Map<String, String> queryParams = new ConcurrentHashMap<>();
+    private Map<String, String> pathParams = new ConcurrentHashMap<>();
     private final Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-    private Map<String, String> formFields = new HashMap<>();
-    private Map<String, List<UploadedFile>> uploadedFiles = new HashMap<>();
-    private final Map<Class<?>, Object> attributes = new HashMap<>();
+    private Map<String, String> formFields = new ConcurrentHashMap<>();
+    private Map<String, List<UploadedFile>> uploadedFiles = new ConcurrentHashMap<>();
+    private final Map<Class<?>, Object> attributes = new ConcurrentHashMap<>();
 
     private static final Gson gson = new Gson();
 
