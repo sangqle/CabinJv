@@ -17,12 +17,17 @@ public class HServer {
 
     public static void main(String[] args) throws IOException {
         server = new ServerBuilder()
-                .setPort(8080)
+                .setPort(8888)
                 .enableLogMetrics(false)
                 .build();
 
         Router router = new Router();
         router.setPrefix("/api");
+
+        router.get("/hello", (req, res) -> {
+            res.writeBody("Hello, World!");
+            res.send();
+        });
 
 
         router.get("/", (req, res) -> {

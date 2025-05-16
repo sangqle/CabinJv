@@ -228,7 +228,13 @@ public class Response {
      */
     public void send(Object content) {
         try {
-            writeBody(content);
+            if(content instanceof String) {
+                writeBody((String) content);
+            } else if (content instanceof byte[]) {
+                write((byte[]) content, 0, ((byte[]) content).length);
+            } else {
+                writeBody(content);
+            }
         } catch (Throwable e) {
             CabinLogger.error("Error sending response: " + e.getMessage(), e);
         }

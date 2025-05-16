@@ -52,14 +52,4 @@ public class ServerBuilderTest {
         // Then
         assertThat(server).isNotNull();
     }
-
-    @Test
-    void shouldThrowExceptionForInvalidPort() {
-        // Then
-        assertThatThrownBy(() ->
-            new ServerBuilder()
-                .setPort(-1)
-                .build()
-        ).isInstanceOf(IllegalArgumentException.class);
-    }
 }

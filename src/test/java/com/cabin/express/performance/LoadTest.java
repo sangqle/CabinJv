@@ -31,39 +31,41 @@ import static org.junit.jupiter.api.Assertions.fail;
 public class LoadTest {
 
     private CabinServer server;
-    private final int TEST_PORT = 8090;
-    private final String BASE_URL = "http://localhost:" + TEST_PORT;
+    private int port;
+    private String baseUrl;
     private ExecutorService executor;
-    
+
     private Thread serverThread;
-    
+
     @BeforeEach
     void setUp() throws IOException {
         // Setup thread pool for parallel requests
         executor = Executors.newFixedThreadPool(50);
-        
+        port = ServerTestUtil.findAvailablePort();
+        baseUrl = "http://localhost:" + port;
+
         // Setup test server
         server = new ServerBuilder()
-                .setPort(TEST_PORT)
+                .setPort(port)
                 .setDefaultPoolSize(20)
                 .setMaxPoolSize(50)
                 .build();
-        
+
         Router router = new Router();
-        
+
         // Simple echo endpoint
         router.get("/echo/:message", (req, res) -> {
             String message = req.getPathParam("message");
             res.send(message);
         });
-        
+
         // CPU-intensive endpoint
         router.get("/compute/:n", (req, res) -> {
             int n = Integer.parseInt(req.getPathParam("n"));
             long result = fibonacci(n);
             res.send(String.valueOf(result));
         });
-        
+
         // Response delay endpoint
         router.get("/delay/:ms", (req, res) -> {
             int delayMs = Integer.parseInt(req.getPathParam("ms"));
@@ -74,26 +76,26 @@ public class LoadTest {
             }
             res.send("Delayed " + delayMs + "ms");
         });
-        
+
         server.use(router);
-        
+
         // Start server in background thread
         serverThread = ServerTestUtil.startServerInBackground(server);
-        
+
         // Verify server is ready
-        boolean isReady = ServerTestUtil.waitForServerReady(BASE_URL, "/echo/test", 5000);
+        boolean isReady = ServerTestUtil.waitForServerReady(baseUrl, "/echo/test", 5000);
         if (!isReady) {
             fail("Server failed to start in time");
         }
     }
-    
+
     @AfterEach
     void tearDown() {
         if (server != null) {
             boolean stopped = ServerTestUtil.stopServer(server, 10000); // Longer timeout for load tests
             assertThat(stopped).withFailMessage("Server failed to stop cleanly").isTrue();
         }
-        
+
         if (executor != null) {
             executor.shutdownNow();
             try {
@@ -106,7 +108,7 @@ public class LoadTest {
             }
         }
     }
-    
+
     @Test
     void shouldHandleConcurrentRequests() throws Exception {
         // Given
@@ -114,95 +116,95 @@ public class LoadTest {
         HttpClient client = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
                 .build();
-        
+
         List<CompletableFuture<HttpResponse<String>>> futures = new ArrayList<>();
-        
+
         // When - Send concurrent requests
         for (int i = 0; i < concurrentRequests; i++) {
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(BASE_URL + "/echo/hello" + i))
+                    .uri(URI.create(baseUrl + "/echo/hello" + i))
                     .GET()
                     .build();
-            
-            CompletableFuture<HttpResponse<String>> future = 
+
+            CompletableFuture<HttpResponse<String>> future =
                     client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
             futures.add(future);
         }
-        
+
         // Join all futures
-        CompletableFuture<Void> allFutures = 
+        CompletableFuture<Void> allFutures =
                 CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
         allFutures.join();
-        
+
         // Then
         List<HttpResponse<String>> responses = futures.stream()
                 .map(CompletableFuture::join)
                 .collect(Collectors.toList());
-        
+
         assertThat(responses).hasSize(concurrentRequests);
         assertThat(responses).allMatch(response -> response.statusCode() == 200);
-        
+
         // Verify each response has the correct body
         for (int i = 0; i < concurrentRequests; i++) {
             assertThat(responses.get(i).body()).isEqualTo("hello" + i);
         }
     }
-    
+
     @Test
     void shouldHandleMixedWorkload() throws Exception {
         // Given
         HttpClient client = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
-        
+
         int totalRequests = 60;
-        
+
         List<CompletableFuture<HttpResponse<String>>> futures = new ArrayList<>();
-        
+
         // When - Send mixed workload (CPU-intensive, IO-bound, and quick responses)
         for (int i = 0; i < totalRequests; i++) {
             final HttpRequest request;
-            
+
             // Every third request is CPU intensive, every third is delayed I/O, rest are quick
             if (i % 3 == 0) {
                 // CPU intensive - calculate fibonacci
                 request = HttpRequest.newBuilder()
-                        .uri(URI.create(BASE_URL + "/compute/30"))
+                        .uri(URI.create(baseUrl + "/compute/30"))
                         .GET()
                         .build();
             } else if (i % 3 == 1) {
                 // I/O bound - artificial delay
                 request = HttpRequest.newBuilder()
-                        .uri(URI.create(BASE_URL + "/delay/100"))
+                        .uri(URI.create(baseUrl + "/delay/100"))
                         .GET()
                         .build();
             } else {
                 // Quick response
                 request = HttpRequest.newBuilder()
-                        .uri(URI.create(BASE_URL + "/echo/quick" + i))
+                        .uri(URI.create(baseUrl + "/echo/quick" + i))
                         .GET()
                         .build();
             }
-            
-            CompletableFuture<HttpResponse<String>> future = 
+
+            CompletableFuture<HttpResponse<String>> future =
                     client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
             futures.add(future);
         }
-        
+
         // Join all futures with a timeout
-        CompletableFuture<Void> allFutures = 
+        CompletableFuture<Void> allFutures =
                 CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
         allFutures.get(30, TimeUnit.SECONDS);
-        
+
         // Then
         List<HttpResponse<String>> responses = futures.stream()
                 .map(CompletableFuture::join)
                 .collect(Collectors.toList());
-        
+
         assertThat(responses).hasSize(totalRequests);
         assertThat(responses).allMatch(response -> response.statusCode() == 200);
     }
-    
+
     // Helper method for CPU-intensive calculation
     private long fibonacci(int n) {
         if (n <= 1) return n;
