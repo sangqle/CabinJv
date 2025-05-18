@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CabinLogger {
-    private static final Logger logger = LoggerFactory.getLogger("CabinFramework");
+    private static final Logger logger = LoggerFactory.getLogger("CabinJV");
 
     public static void info(String msg) {
         logger.info(msg);
@@ -20,5 +20,9 @@ public class CabinLogger {
 
     public static void error(String msg, Throwable e) {
         logger.error(msg, e);
+    }
+
+    public static void error(String msg) {
+        logger.error(msg);
     }
 }

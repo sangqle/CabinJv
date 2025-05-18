@@ -7,10 +7,33 @@ import java.io.*;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.lang.reflect.Type;
 
 /**
- * Represents an HTTP request.
+ * Represents an HTTP request with methods for accessing and parsing request data.
+ * <p>
+ * This class encapsulates key components of an HTTP request, including the HTTP method,
+ * path, headers, query parameters, path parameters, form fields, uploaded files, and the request body.
+ * It provides convenient accessor methods for retrieving various aspects of the request, and
+ * supports parsing of URL-encoded forms, multipart data, and JSON bodies.
+ * </p>
+ *
+ * <p>
+ * <b>Usage:</b> A {@code Request} instance is designed to be used by a single thread
+ * handling an individual HTTP request. It is not safe for concurrent use by multiple threads.
+ * </p>
+ *
+ * <ul>
+ *   <li>Provides accessors for method, path, headers, parameters, and body.</li>
+ *   <li>Parses form data (URL-encoded and multipart) and JSON bodies automatically.</li>
+ *   <li>Allows retrieval of uploaded files and form fields.</li>
+ *   <li>Supports custom attributes for request-scoped data.</li>
+ * </ul>
+ *
+ * <p>
+ * <b>Thread Safety:</b> Instances of this class are not thread-safe. Do not share a {@code Request}
+ * object across multiple threads.
+ * </p>
  *
  * @author Sang Le
  * @version 1.0.0
@@ -20,13 +43,13 @@ public class Request {
     private String method;
     private String path;
     private String body;
-    private Map<String, Object> bodyAsJson = new ConcurrentHashMap<>();
-    private Map<String, String> queryParams = new ConcurrentHashMap<>();
-    private Map<String, String> pathParams = new ConcurrentHashMap<>();
+    private Map<String, Object> bodyAsJson = new HashMap<>();
+    private Map<String, String> queryParams = new HashMap<>();
+    private Map<String, String> pathParams = new HashMap<>();
     private final Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-    private Map<String, String> formFields = new ConcurrentHashMap<>();
-    private Map<String, List<UploadedFile>> uploadedFiles = new ConcurrentHashMap<>();
-    private final Map<Class<?>, Object> attributes = new ConcurrentHashMap<>();
+    private Map<String, String> formFields = new HashMap<>();
+    private Map<String, List<UploadedFile>> uploadedFiles = new HashMap<>();
+    private final Map<Class<?>, Object> attributes = new HashMap<>();
 
     private static final Gson gson = new Gson();
 
@@ -258,6 +281,15 @@ public class Request {
     }
 
     /**
+     * Get the request body as a string
+     *
+     * @return The request body as a string
+     */
+    public String getBodyAsString() {
+        return body;
+    }
+
+    /**
      * Parses the request body as an object of the specified class.
      *
      * @param <T>   The type of the object to parse the body as.
@@ -265,9 +297,23 @@ public class Request {
      * @return The parsed object, or null if the body is null or not JSON.
      * @throws IllegalArgumentException if the body cannot be parsed as the specified class.
      */
-    public <T> T getBodyAs(Class<T> clazz) {
-        if (body != null && headers.containsKey("content-type") && headers.get("content-type").toLowerCase().contains("application/json")) {
+    public <T> T getBodyAs(Type typeOfT) {
+        if (body != null && headers.containsKey("content-type") &&
+                headers.get("content-type").toLowerCase().contains("application/json")) {
             try {
+                return gson.fromJson(body, typeOfT);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Failed to parse JSON body: " + e.getMessage(), e);
+            }
+        }
+        return null;
+    }
+
+    public <T> T getBodyAs(Class<T> clazz) {
+        if (body != null && headers.containsKey("content-type") &&
+                headers.get("content-type").toLowerCase().contains("application/json")) {
+            try {
+                // Use a new Gson instance or ensure thread-safety
                 return gson.fromJson(body, clazz);
             } catch (Exception e) {
                 throw new IllegalArgumentException("Failed to parse JSON body: " + e.getMessage(), e);
@@ -403,4 +449,3 @@ public class Request {
         return key.cast(attributes.get(key));
     }
 }
-
