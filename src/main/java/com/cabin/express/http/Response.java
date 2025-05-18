@@ -22,8 +22,10 @@ import java.util.zip.GZIPOutputStream;
  */
 public class Response {
     private int statusCode = 200;
-    private Map<String, String> headers = new ConcurrentHashMap<>();
-    private Map<String, String> cookies = new ConcurrentHashMap<>();
+    private ConcurrentHashMap
+            <String, String> headers = new ConcurrentHashMap<>();
+    private ConcurrentHashMap
+            <String, String> cookies = new ConcurrentHashMap<>();
     private StringBuilder body = new StringBuilder();
     private final SocketChannel clientChannel;
     private boolean compressionEnabled = false;

@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -128,6 +129,11 @@ public class LoadTest {
         }
     }
 
+    /**
+     * Test to simulate a high load on the server with concurrent requests.
+     * This test will send multiple requests to the server and check the responses.
+     * @throws Exception
+     */
     @Test
     void shouldHandleConcurrentRequests() throws Exception {
         // Given
@@ -398,6 +404,148 @@ public class LoadTest {
         // Add assertion to make sure we're actually detecting thread-safety issues
         assertThat(exceptionCount).as("Should have detected some thread-safety issues").isEqualTo(0);
     }
+
+    @Test
+    void shouldHandleHighVolumeRequestsCorrectly() throws Exception {
+        // Given
+        int concurrentRequests = 500;
+        int uniqueEndpoints = 10;
+        HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+
+        List<CompletableFuture<HttpResponse<String>>> futures = new ArrayList<>();
+
+        // When - Send high volume of concurrent requests to different endpoints
+        for (int i = 0; i < concurrentRequests; i++) {
+            int endpointIndex = i % uniqueEndpoints;
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/echo/endpoint" + endpointIndex + "-request" + i))
+                    .GET()
+                    .build();
+
+            CompletableFuture<HttpResponse<String>> future =
+                    client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+            futures.add(future);
+        }
+
+        // Join all futures with timeout
+        CompletableFuture<Void> allFutures =
+                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+        allFutures.get(30, TimeUnit.SECONDS);
+
+        // Then
+        List<HttpResponse<String>> responses = futures.stream()
+                .map(CompletableFuture::join)
+                .collect(Collectors.toList());
+
+        // Verify all requests were handled
+        assertThat(responses).hasSize(concurrentRequests);
+        
+        // Verify responses have correct status codes
+        long successfulResponses = responses.stream()
+                .filter(response -> response.statusCode() == 200)
+                .count();
+        
+        System.out.println("Successful responses: " + successfulResponses + " out of " + concurrentRequests);
+        assertThat(successfulResponses).isEqualTo(concurrentRequests);
+        
+        // Verify each response has the expected content for its request
+        for (int i = 0; i < concurrentRequests; i++) {
+            String expectedBody = "endpoint" + (i % uniqueEndpoints) + "-request" + i;
+            assertThat(responses.get(i).body()).isEqualTo(expectedBody);
+        }
+    }
+
+    @Test
+    void shouldPreventDataOverlapBetweenConcurrentRequests() throws Exception {
+        // Create an endpoint that stores request-specific data
+        Router router = new Router();
+        router.get("/data-isolation/:id", (req, res) -> {
+            String requestId = req.getPathParam("id");
+        
+        // Store some request-specific data in the response
+        for (int i = 0; i < 10; i++) {
+            // Use requestId as a prefix to make values easily distinguishable
+            res.setHeader("X-Data-" + i, "req" + requestId + "-value-" + i);
+        }
+        
+        // Add a slight delay to increase chance of overlap if there's a problem
+        try {
+            Thread.sleep(new Random().nextInt(10) + 1);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
+        // Send all headers back in the response body for verification
+        Map<String, String> headers = res.getHeaders();
+        StringBuilder result = new StringBuilder();
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
+            if (entry.getKey().startsWith("X-Data-")) {
+                result.append(entry.getKey()).append("=").append(entry.getValue()).append(";");
+            }
+        }
+        
+        res.send(result.toString());
+    });
+    
+    server.use(router);
+    
+    // Test with a smaller number of concurrent requests to make debugging easier
+    int concurrentRequests = 20;
+    HttpClient client = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
+    
+    List<CompletableFuture<HttpResponse<String>>> futures = new ArrayList<>();
+    
+    for (int i = 0; i < concurrentRequests; i++) {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/data-isolation/" + i))
+                .GET()
+                .build();
+        
+        CompletableFuture<HttpResponse<String>> future =
+                client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+        futures.add(future);
+    }
+    
+    // Join all futures
+    CompletableFuture<Void> allFutures =
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+    allFutures.get(30, TimeUnit.SECONDS);
+    
+    // Verify each response contains only its own data
+    List<HttpResponse<String>> responses = futures.stream()
+            .map(CompletableFuture::join)
+            .collect(Collectors.toList());
+    
+    assertThat(responses).hasSize(concurrentRequests);
+    
+    // Better validation that clarifies what we're actually testing for
+    for (int i = 0; i < concurrentRequests; i++) {
+        String response = responses.get(i).body();
+        String requestId = String.valueOf(i);
+        
+        // Each response should only contain values with its own request ID prefix
+        for (int j = 0; j < 10; j++) {
+            String expectedHeaderValue = "req" + requestId + "-value-" + j;
+            assertThat(response).contains("X-Data-" + j + "=" + expectedHeaderValue);
+        }
+        
+        // Check for values belonging to different requests
+        for (int otherReq = 0; otherReq < concurrentRequests; otherReq++) {
+            if (otherReq != i) {
+                // Look for any values containing other request IDs
+                String otherRequestPrefix = "req" + otherReq;
+                assertThat(response)
+                    .withFailMessage("Response for request %d contains data from request %d: %s", 
+                                    i, otherReq, response)
+                    .doesNotContain(otherRequestPrefix);
+            }
+        }
+    }
+}
 
     // Helper method for CPU-intensive calculation
     private long fibonacci(int n) {
