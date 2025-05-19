@@ -264,4 +264,7 @@ public class Response {
         return compressionEnabled;
     }
 
+    public int getStatusCode() {
+        return statusCode;
+    }
 }

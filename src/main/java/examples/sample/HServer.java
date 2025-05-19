@@ -19,6 +19,8 @@ public class HServer {
         server = new ServerBuilder()
                 .setPort(8888)
                 .enableLogMetrics(false)
+                .enableProfiler(true)
+                .enableProfilerDashboard(true)
                 .build();
 
         Router router = new Router();
@@ -72,10 +74,10 @@ public class HServer {
                 .excludePrefixes("/api/", "/graph/");
 
         // Add static middleware last
-        server.use(staticMiddleware);
+//        server.use(staticMiddleware);
 
         // Start the server in the main thread
-        logger.info("Starting server at http://localhost:8080");
+        logger.info("Starting server at http://localhost:" + server.getPort());
         server.start();
     }
 }

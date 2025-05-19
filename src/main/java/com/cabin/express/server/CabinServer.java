@@ -7,8 +7,12 @@ import com.cabin.express.interfaces.Handler;
 import com.cabin.express.interfaces.Middleware;
 import com.cabin.express.loggger.CabinLogger;
 import com.cabin.express.middleware.MiddlewareChain;
+import com.cabin.express.profiler.ServerProfiler;
+import com.cabin.express.profiler.reporting.DashboardReporter;
 import com.cabin.express.router.Router;
+import com.cabin.express.profiler.metrics.ThreadMetrics;
 import com.cabin.express.worker.CabinWorkerPool;
+import com.google.gson.Gson;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -22,6 +26,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 
 /**
  * A simple HTTP server using Java NIO.
@@ -67,6 +72,9 @@ public class CabinServer {
      */
     private volatile boolean isStopped = false;
 
+    private boolean profilerEnabled = false;
+    private boolean profilerDashboardEnabled = false;
+
     /**
      * Creates a new server with the specified port number, default pool size,
      * maximum pool size, and maximum queue capacity.
@@ -82,8 +90,7 @@ public class CabinServer {
             int maxPoolSize,
             int maxQueueCapacity,
             long connectionTimeoutMillis,
-            long idleConnectionTimeoutSeconds,
-            boolean isLogMetrics
+            long idleConnectionTimeoutSeconds
     ) {
         this.port = port;
         this.connectionTimeoutMillis = connectionTimeoutMillis;
@@ -91,13 +98,60 @@ public class CabinServer {
 
         this.readWorkerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
         this.writeWorkerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
-        this.isLogMetrics = isLogMetrics;
+    }
+
+    protected CabinServer(
+            int port,
+            int defaultPoolSize,
+            int maxPoolSize,
+            int maxQueueCapacity,
+            long connectionTimeoutMillis,
+            long idleConnectionTimeoutSeconds,
+            boolean profilerEnabled,
+            boolean profilerDashboardEnabled
+    ) {
+        this.port = port;
+        this.connectionTimeoutMillis = connectionTimeoutMillis;
+        this.idleConnectionTimeoutMillis = idleConnectionTimeoutSeconds;
+
+        this.readWorkerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
+        this.writeWorkerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
+        this.profilerEnabled = profilerEnabled;
+        this.profilerDashboardEnabled = profilerDashboardEnabled;
     }
 
     /**
-     * Start the server
-     *
-     * @throws IOException if an I/O error occurs
+     * Set whether the profiler is enabled
+     */
+    public void setProfilerEnabled(boolean enabled) {
+        this.profilerEnabled = enabled;
+        // Update the actual profiler instance
+        ServerProfiler.INSTANCE.setEnabled(enabled);
+    }
+
+    /**
+     * Get whether the profiler is enabled
+     */
+    public boolean isProfilerEnabled() {
+        return profilerEnabled;
+    }
+
+    /**
+     * Set whether the profiler dashboard is enabled
+     */
+    public void setProfilerDashboardEnabled(boolean enabled) {
+        this.profilerDashboardEnabled = enabled;
+    }
+
+    /**
+     * Get whether the profiler dashboard is enabled
+     */
+    public boolean isProfilerDashboardEnabled() {
+        return profilerDashboardEnabled;
+    }
+
+    /**
+     * Start the server and initialize all components
      */
     public void start() throws IOException {
         // Reset stop flag
@@ -106,6 +160,17 @@ public class CabinServer {
 
         initializeServer();
         CabinLogger.info("Server started on port " + port);
+
+        // Initialize profiler if enabled
+        if (profilerEnabled) {
+            // Make sure the profiler is enabled
+            ServerProfiler.INSTANCE.setEnabled(true);
+
+            // Set up profiler dashboard if enabled
+            if (profilerDashboardEnabled) {
+                setupDashboard();
+            }
+        }
 
         // Event loop
         while (isRunning) {
@@ -337,7 +402,15 @@ public class CabinServer {
     }
 
 
+    /**
+     * Handle a client request, integrating profiler metrics
+     */
     private void handleClientRequest(SocketChannel clientChannel, ByteArrayOutputStream byteArrayOutputStream) {
+        // Start request profiling if enabled
+        if (profilerEnabled) {
+            ServerProfiler.INSTANCE.startRequest();
+        }
+
         try {
             Request request = new Request(byteArrayOutputStream);
             Response response = new Response(clientChannel);
@@ -359,13 +432,30 @@ public class CabinServer {
             MiddlewareChain chain = new MiddlewareChain(allMiddleware, finalHandler);
             chain.next(request, response);
 
+            // For example purposes, assuming status code and path are available:
+            int statusCode = response.getStatusCode(); // This should be the actual status code
+            String path = request.getPath(); // This should be the actual path
+
+            // End request profiling if enabled
+            if (profilerEnabled) {
+                ServerProfiler.INSTANCE.endRequest(path, statusCode);
+            }
+
         } catch (IOException e) {
             CabinLogger.error("Error processing client request: " + e.getMessage(), e);
             sendInternalServerError(clientChannel);
+            // Make sure to end request profiling even on exception
+            if (profilerEnabled) {
+                ServerProfiler.INSTANCE.endRequest("error", 500);
+            }
         } catch (Throwable e) {
             CabinLogger.error("Error processing client request: " + e.getMessage(), e);
             GlobalExceptionHandler.handleException(e, new Response(clientChannel));
             sendInternalServerError(clientChannel);
+            // Make sure to end request profiling even on exception
+            if (profilerEnabled) {
+                ServerProfiler.INSTANCE.endRequest("error", 500);
+            }
         }
     }
 
@@ -497,6 +587,9 @@ public class CabinServer {
         }
     }
 
+    /**
+     * Stop the server and clean up resources
+     */
     private void shutdown() {
         CabinLogger.info("Initiating server shutdown...");
 
@@ -545,12 +638,15 @@ public class CabinServer {
             CabinLogger.error("Error shutting down scheduler: " + e.getMessage(), e);
         }
 
+        // Stop profiler if it's running
+        if (profilerEnabled) {
+            ServerProfiler.INSTANCE.stop();
+        }
+
         // Mark server as stopped
         isStopped = true;
         CabinLogger.info("Server shutdown complete.");
     }
-
-
 
 
     /**
@@ -617,5 +713,23 @@ public class CabinServer {
             CabinLogger.error("Interrupted while waiting for server to stop", e);
             return false;
         }
+    }
+
+    public int getPort() {
+        return port;
+    }
+
+    /**
+     * Set up the profiler dashboard
+     */
+    private void setupDashboard() {
+        // Create dashboard reporter and add to router
+        DashboardReporter dashboardReport = new DashboardReporter();
+
+        // Add the dashboard reporter to ServerProfiler
+        ServerProfiler.INSTANCE.addReporter(dashboardReport);
+
+        // Add the dashboard router to the server
+        this.use(dashboardReport.getRouter());
     }
 }

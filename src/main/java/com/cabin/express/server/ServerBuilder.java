@@ -1,5 +1,9 @@
 package com.cabin.express.server;
 
+import com.cabin.express.profiler.ServerProfiler;
+
+import java.time.Duration;
+
 /**
  * A builder class for creating a CabinServer instance
  *
@@ -24,6 +28,12 @@ public class ServerBuilder {
     private long timeout = 500;
     private long idleTimeoutMiles = 10 * 1000;
     private boolean isLoggingMetrics = false;
+
+    // Add profiler settings
+    private boolean enableProfiler = false;
+    private Duration profilerSamplingInterval = Duration.ofSeconds(10);
+    private boolean enableProfilerDashboard = false;
+
 
     /**
      * Set the port number
@@ -114,6 +124,57 @@ public class ServerBuilder {
      * @return the CabinServer instance
      */
     public CabinServer build() {
-        return new CabinServer(port, defaultPoolSize, maxPoolSize, maxQueueCapacity, timeout, idleTimeoutMiles, isLoggingMetrics);
+        CabinServer cabinServer = new CabinServer(
+                port,
+                defaultPoolSize,
+                maxPoolSize,
+                maxQueueCapacity,
+                timeout,
+                idleTimeoutMiles,
+                enableProfiler,
+                enableProfilerDashboard
+        );
+
+        // Config profiler settings
+        ServerProfiler.INSTANCE.setEnabled(enableProfiler);
+
+        if (profilerSamplingInterval != null) {
+            ServerProfiler.INSTANCE.withSamplingInterval(profilerSamplingInterval);
+        }
+
+        return cabinServer;
+    }
+
+    /**
+     * Enable or disable the profiler dashboard web UI
+     *
+     * @param enable true to enable dashboard, false to disable
+     * @return this builder for method chaining
+     */
+    public ServerBuilder enableProfilerDashboard(boolean enable) {
+        this.enableProfilerDashboard = enable;
+        return this;
+    }
+
+    /**
+     * Enable or disable the server profiler
+     *
+     * @param enable true to enable profiler, false to disable
+     * @return this builder for method chaining
+     */
+    public ServerBuilder enableProfiler(boolean enable) {
+        this.enableProfiler = enable;
+        return this;
+    }
+
+    /**
+     * Set the sampling interval for the profiler
+     *
+     * @param interval the duration between metrics collections
+     * @return this builder for method chaining
+     */
+    public ServerBuilder setProfilerSamplingInterval(Duration interval) {
+        this.profilerSamplingInterval = interval;
+        return this;
     }
 }

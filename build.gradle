@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'maven-publish'
+    id 'org.jetbrains.kotlin.jvm'
 }
 
 group = 'com.cabin.express'
@@ -35,8 +36,6 @@ ext {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
 }
 
 dependencies {
@@ -54,6 +53,7 @@ dependencies {
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.mockito:mockito-core:5.4.0'
     testImplementation("org.mockito:mockito-junit-jupiter:5.14.2")
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
 }
 
 test {
