@@ -448,4 +448,8 @@ public class Request {
     public <T> T getAttribute(Class<T> key) {
         return key.cast(attributes.get(key));
     }
+
+    public void setPathParam(String key, String value) {
+        pathParams.put(key, value);
+    }
 }

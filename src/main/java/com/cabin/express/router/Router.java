@@ -18,19 +18,25 @@ public class Router implements Middleware {
     private String prefix = "";
     private final ConcurrentHashMap<String, List<Route>> routes;
     private final List<Middleware> middlewares;
+    private final List<Router> childRouters;
 
     public Router() {
         this.routes = new ConcurrentHashMap<>();
         this.middlewares = new ArrayList<>();
+        this.childRouters = new ArrayList<>();
     }
 
     // Route class to store route information
     private static class Route {
+        final String method;
+        final String path;
         final Pattern pattern;
         final Handler handler;
         final List<Middleware> middlewares;
 
-        Route(Pattern pattern, Handler handler) {
+        Route(String method, String path, Pattern pattern, Handler handler) {
+            this.method = method;
+            this.path = path;
             this.pattern = pattern;
             this.handler = handler;
             this.middlewares = new ArrayList<>();
@@ -45,6 +51,16 @@ public class Router implements Middleware {
 
     public Router get(String path, Handler handler) {
         addRoute("GET", path, handler);
+        return this;
+    }
+
+    public Router get(String path, Middleware middleware, Handler handler) {
+        // Do nothing
+        return this;
+    }
+
+    public Router get(String path, List<Middleware> middlewares, Handler handler) {
+        // Do nothing
         return this;
     }
 
@@ -75,9 +91,20 @@ public class Router implements Middleware {
 
     // Middleware support
     public Router use(Middleware middleware) {
-        middlewares.add(middleware);
+        if (middleware instanceof Router) {
+            childRouters.add((Router) middleware);
+        } else {
+            middlewares.add(middleware);
+        }
         return this;
     }
+
+    // Add child router
+    public Router use(Router childRouter) {
+        childRouters.add(childRouter);
+        return this;
+    }
+
 
     // Route-specific middleware
     public Router use(String path, Middleware... middlewares) {
@@ -96,7 +123,7 @@ public class Router implements Middleware {
         String fullPath = prefix.isEmpty() ? path : prefix + path;
         Pattern pattern = Pattern.compile(pathToPattern(fullPath));
         routes.computeIfAbsent(method, k -> new ArrayList<>())
-                .add(new Route(pattern, handler));
+                .add(new Route(method, fullPath, pattern, handler));
     }
 
     private String pathToPattern(String path) {
@@ -124,23 +151,47 @@ public class Router implements Middleware {
             return;
         }
 
+        // Try child routers
+        for (Router childRouter : childRouters) {
+            // Create a new middleware chain to continue if child does not match
+            MiddlewareChain childChain = new MiddlewareChain(List.of(), (req, res) -> {
+            });
+
+            childRouter.apply(request, response, childChain);
+
+            if (response.isSend()) {
+                return;
+            }
+        }
+
         // No matching route found, pass to next middleware
         next.next(request, response);
     }
 
-    private boolean tryRoute(String method, String path, Request request, Response response) {
-        List<Route> methodRoutes = routes.getOrDefault(method, Collections.emptyList());
+    private boolean tryRoute(String method, String path, Request request, Response response) throws IOException {
+        List<Route> methodRoutes = routes.get(method);
+        if (methodRoutes == null) {
+            return false;
+        }
 
         for (Route route : methodRoutes) {
             Matcher matcher = route.pattern.matcher(path);
             if (matcher.matches()) {
                 // Extract path parameters
                 Map<String, String> params = extractPathParams(matcher);
-                request.setPathParams(params);
 
-                // Create middleware chain including route-specific middlewares
-                List<Middleware> routeChain = new ArrayList<>(middlewares);
+                // Set path parameters in the request
+                for (Map.Entry<String, String> param : params.entrySet()) {
+                    request.setPathParam(param.getKey(), param.getValue());
+                }
+
+                // Create a new middleware chain just for this route
+                List<Middleware> routeChain = new ArrayList<>();
+
+                // Add any route-specific middleware
                 routeChain.addAll(route.middlewares);
+
+                // Add the route handler as the final middleware
                 routeChain.add((req, res, chain) -> {
                     try {
                         route.handler.handle(req, res);
@@ -152,29 +203,15 @@ public class Router implements Middleware {
                     }
                 });
 
-                try {
-                    new MiddlewareChain(routeChain, (req, res) -> {
-                        CabinLogger.warn("No handler found for route: " + req.getPath());
-                        res.setStatusCode(404);
-                        res.writeBody("Not Found");
-                        res.send();
-                    }).next(request, response);
+                // Execute the route's middleware chain
+                MiddlewareChain routeMiddlewareChain = new MiddlewareChain(routeChain, null);
+                routeMiddlewareChain.next(request, response);
 
-                    return true;
-                } catch (Exception e) {
-                    CabinLogger.error("Error processing request: " + e.getMessage(), e);
-                    try {
-                        response.setStatusCode(500);
-                        response.writeBody("Internal Server Error");
-                        response.send();
-                    } catch (Exception ex) {
-                        CabinLogger.error("Error sending error response: " + ex.getMessage(), ex);
-                    }
-                    return true;
-                }
+                return true;  // Route matched and executed
             }
         }
-        return false;
+
+        return false;  // No route matched
     }
 
     private Map<String, String> extractPathParams(Matcher matcher) {

@@ -267,4 +267,15 @@ public class Response {
     public int getStatusCode() {
         return statusCode;
     }
+
+    public void setContentType(String contentType) {
+        if (contentType == null || contentType.isEmpty()) {
+            throw new IllegalArgumentException("Content-Type cannot be null or empty");
+        }
+        setHeader("Content-Type", contentType);
+    }
+
+    public boolean isSend() {
+        return bufferOut != null && bufferOut.size() > 0;
+    }
 }
