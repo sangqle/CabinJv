@@ -25,9 +25,8 @@ public class ServerBuilder {
     private int defaultPoolSize = 20;
     private int maxPoolSize = 200;
     private int maxQueueCapacity = 2000;
-    private long timeout = 500;
+    private long timeout = 2000;
     private long idleTimeoutMiles = 10 * 1000;
-    private boolean isLoggingMetrics = false;
 
     // Add profiler settings
     private boolean enableProfiler = false;
@@ -104,17 +103,6 @@ public class ServerBuilder {
      */
     public ServerBuilder setIdleTimeoutMiles(long idleTimeoutMiles) {
         this.idleTimeoutMiles = idleTimeoutMiles;
-        return this;
-    }
-
-    /**
-     * Set whether to log metrics
-     *
-     * @param isLoggingMetrics whether to log metrics
-     * @return the server builder
-     */
-    public ServerBuilder enableLogMetrics(boolean isLoggingMetrics) {
-        this.isLoggingMetrics = isLoggingMetrics;
         return this;
     }
 
