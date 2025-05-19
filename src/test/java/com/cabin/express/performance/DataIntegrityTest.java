@@ -18,6 +18,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.rmi.ServerError;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
@@ -89,6 +90,8 @@ public class DataIntegrityTest {
         port = (int) serverInfo[1];
         serverThread = (Thread) serverInfo[2];
         baseUrl = "http://localhost:" + port;
+
+        // Enable server metrics
 
         // Setup test routes
         setupTestRoutes();
@@ -601,26 +604,50 @@ public class DataIntegrityTest {
     }
 
     private boolean processBatch(HttpClient client, Map<String, String> batchData) {
-        try {
-            String jsonData = gson.toJson(batchData);
+        final int MAX_RETRIES = 3;
+        int attempt = 0;
 
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl + "/data/batch"))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(jsonData))
-                    .build();
+        while (attempt < MAX_RETRIES) {
+            try {
+                String jsonData = gson.toJson(batchData);
 
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(baseUrl + "/data/batch"))
+                        .header("Content-Type", "application/json")
+                        .timeout(Duration.ofSeconds(120)) // Longer timeout for large batches
+                        .POST(HttpRequest.BodyPublishers.ofString(jsonData))
+                        .build();
 
-            if (response.statusCode() != 200) {
-                CabinLogger.error("Batch operation failed with status: " + response.statusCode());
-                return false;
+                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+                if (response.statusCode() != 200) {
+                    CabinLogger.warn("Batch operation failed with status: " + response.statusCode() +
+                            " (Attempt " + (attempt + 1) + " of " + MAX_RETRIES + ")");
+                    attempt++;
+                    if (attempt < MAX_RETRIES) {
+                        Thread.sleep(1000 * attempt); // Exponential backoff
+                        continue;
+                    }
+                    return false;
+                }
+                return true;
+            } catch (Exception e) {
+                CabinLogger.error("Error processing batch (Attempt " + (attempt + 1) +
+                        " of " + MAX_RETRIES + "): " + e.getMessage(), e);
+                attempt++;
+                if (attempt < MAX_RETRIES) {
+                    try {
+                        Thread.sleep(1000 * attempt); // Exponential backoff
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
             }
-            return true;
-        } catch (Exception e) {
-            CabinLogger.error("Error processing batch: " + e.getMessage(), e);
-            return false;
         }
+        return false;
     }
 
     private Map<String, String> fetchAllData(HttpClient client) throws Exception {
