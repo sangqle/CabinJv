@@ -18,7 +18,6 @@ public class HServer {
     public static void main(String[] args) throws IOException {
         server = new ServerBuilder()
                 .setPort(8888)
-                .enableLogMetrics(false)
                 .enableProfiler(true)
                 .enableProfilerDashboard(true)
                 .build();

@@ -16,7 +16,6 @@ public class SimpleMainTests {
         
         CabinServer server = new ServerBuilder()
                 .setPort(port)
-                .enableLogMetrics(false)
                 .build();
 
         Router router = new Router();

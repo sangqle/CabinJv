@@ -41,15 +41,4 @@ public class ServerBuilderTest {
         // Then
         assertThat(server).isNotNull();
     }
-
-    @Test
-    void shouldEnableLogMetrics() {
-        // When
-        CabinServer server = new ServerBuilder()
-                .enableLogMetrics(true)
-                .build();
-
-        // Then
-        assertThat(server).isNotNull();
-    }
 }
