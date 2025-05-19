@@ -7,6 +7,7 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.*;
 
 /**
@@ -17,8 +18,8 @@ import java.util.regex.*;
  * @since 2025-02-23
  */
 public class MultipartParser {
-    private final Map<String, String> formFields = new HashMap<>();
-    private final Map<String, List<UploadedFile>> uploadedFiles = new HashMap<>();
+    private final Map<String, String> formFields = new ConcurrentHashMap<>();
+    private final Map<String, List<UploadedFile>> uploadedFiles = new ConcurrentHashMap<>();
     private final String boundary;
 
     public MultipartParser(byte[] requestData, String contentType) throws Exception {

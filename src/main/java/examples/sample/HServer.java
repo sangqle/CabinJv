@@ -13,15 +13,22 @@ import java.io.IOException;
 
 public class HServer {
     private static final Logger logger = LoggerFactory.getLogger(HServer.class);
+    private static CabinServer server;
 
     public static void main(String[] args) throws IOException {
-        CabinServer server = new ServerBuilder()
-                .setPort(8080)
-                .enableLogMetrics(false)
+        server = new ServerBuilder()
+                .setPort(8888)
+                .enableProfiler(true)
+                .enableProfilerDashboard(true)
                 .build();
 
         Router router = new Router();
-        router.setPrefix("/api/");
+        router.setPrefix("/api");
+
+        router.get("/hello", (req, res) -> {
+            res.writeBody("Hello, World!");
+            res.send();
+        });
 
 
         router.get("/", (req, res) -> {
@@ -38,12 +45,38 @@ public class HServer {
             res.send(largeResponse.toString());
         });
 
+        // Route to stop the server gracefully
+        router.get("/stop", (req, res) -> {
+            res.writeBody("Stopping server...");
+            res.send();
+
+            // Stop the server in a separate thread after sending the response
+            new Thread(() -> {
+                try {
+                    Thread.sleep(1000); // Wait a second before stopping
+                    boolean stopped = server.stop(10000); // Stop with 10 second timeout
+                    logger.info("Server stopped successfully: " + stopped);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    logger.error("Error while stopping server", e);
+                }
+            }).start();
+        });
+
         // Static file serving
         server.use(new GzipMiddleware());
-        server.use(new StaticMiddleware("public", "/"));
         server.use(router);
-        server.use(AppRouter.router);
+
+
+        // Create static middleware and exclude API paths using the new pattern
+        StaticMiddleware staticMiddleware = new StaticMiddleware("public", "/")
+                .excludePrefixes("/api/", "/graph/");
+
+        // Add static middleware last
+//        server.use(staticMiddleware);
+
+        // Start the server in the main thread
+        logger.info("Starting server at http://localhost:" + server.getPort());
         server.start();
-        logger.info("Server started at http://localhost:8080");
     }
 }

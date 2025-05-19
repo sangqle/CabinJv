@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'maven-publish'
+    id 'org.jetbrains.kotlin.jvm'
 }
 
 group = 'com.cabin.express'
@@ -35,23 +36,24 @@ ext {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
 }
 
 dependencies {
-    testImplementation platform('org.junit:junit-bom:5.10.0')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'ch.qos.logback:logback-classic:1.4.5'
     implementation 'org.slf4j:slf4j-api:2.0.9'
 
-    // Tests dependencies
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
-
     // http
     implementation 'org.apache.httpcomponents.client5:httpclient5:5.4.4'
     implementation 'org.apache.httpcomponents.core5:httpcore5:5.3.4'
+
+    // Tests dependencies
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
+    testImplementation 'org.assertj:assertj-core:3.27.3'
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.mockito:mockito-core:5.4.0'
+    testImplementation("org.mockito:mockito-junit-jupiter:5.14.2")
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
 }
 
 test {

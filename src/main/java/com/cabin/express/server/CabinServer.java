@@ -3,12 +3,16 @@ package com.cabin.express.server;
 import com.cabin.express.exception.GlobalExceptionHandler;
 import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
+import com.cabin.express.interfaces.Handler;
 import com.cabin.express.interfaces.Middleware;
 import com.cabin.express.loggger.CabinLogger;
 import com.cabin.express.middleware.MiddlewareChain;
-import com.cabin.express.middleware.MiddlewareRegistry;
+import com.cabin.express.profiler.ServerProfiler;
+import com.cabin.express.profiler.reporting.DashboardReporter;
 import com.cabin.express.router.Router;
+import com.cabin.express.profiler.metrics.ThreadMetrics;
 import com.cabin.express.worker.CabinWorkerPool;
+import com.google.gson.Gson;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -22,6 +26,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 
 /**
  * A simple HTTP server using Java NIO.
@@ -39,7 +44,7 @@ public class CabinServer {
     private final List<Router> routers = new ArrayList<>();
     private final List<Middleware> globalMiddlewares = new ArrayList<>();
     private final Map<SocketChannel, Long> connectionLastActive = new ConcurrentHashMap<>();
-    private final Map<SocketChannel, ByteArrayOutputStream> clientBuffers = new HashMap<>();
+    private final Map<SocketChannel, ByteArrayOutputStream> clientBuffers = new ConcurrentHashMap<>();
 
     // Resource logging task
     private ScheduledFuture<?> resourceLoggingTask;
@@ -62,6 +67,13 @@ public class CabinServer {
     private volatile boolean isRunning = true; // Flag to control the event loop
 
     private volatile boolean isLogMetrics = false; // Flag to control the event loop
+    /**
+     * Flag to track if server is stopped completely
+     */
+    private volatile boolean isStopped = false;
+
+    private boolean profilerEnabled = false;
+    private boolean profilerDashboardEnabled = false;
 
     /**
      * Creates a new server with the specified port number, default pool size,
@@ -78,8 +90,7 @@ public class CabinServer {
             int maxPoolSize,
             int maxQueueCapacity,
             long connectionTimeoutMillis,
-            long idleConnectionTimeoutSeconds,
-            boolean isLogMetrics
+            long idleConnectionTimeoutSeconds
     ) {
         this.port = port;
         this.connectionTimeoutMillis = connectionTimeoutMillis;
@@ -87,17 +98,79 @@ public class CabinServer {
 
         this.readWorkerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
         this.writeWorkerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
-        this.isLogMetrics = isLogMetrics;
+    }
+
+    protected CabinServer(
+            int port,
+            int defaultPoolSize,
+            int maxPoolSize,
+            int maxQueueCapacity,
+            long connectionTimeoutMillis,
+            long idleConnectionTimeoutSeconds,
+            boolean profilerEnabled,
+            boolean profilerDashboardEnabled
+    ) {
+        this.port = port;
+        this.connectionTimeoutMillis = connectionTimeoutMillis;
+        this.idleConnectionTimeoutMillis = idleConnectionTimeoutSeconds;
+
+        this.readWorkerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
+        this.writeWorkerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
+        this.profilerEnabled = profilerEnabled;
+        this.profilerDashboardEnabled = profilerDashboardEnabled;
     }
 
     /**
-     * Start the server
-     *
-     * @throws IOException if an I/O error occurs
+     * Set whether the profiler is enabled
+     */
+    public void setProfilerEnabled(boolean enabled) {
+        this.profilerEnabled = enabled;
+        // Update the actual profiler instance
+        ServerProfiler.INSTANCE.setEnabled(enabled);
+    }
+
+    /**
+     * Get whether the profiler is enabled
+     */
+    public boolean isProfilerEnabled() {
+        return profilerEnabled;
+    }
+
+    /**
+     * Set whether the profiler dashboard is enabled
+     */
+    public void setProfilerDashboardEnabled(boolean enabled) {
+        this.profilerDashboardEnabled = enabled;
+    }
+
+    /**
+     * Get whether the profiler dashboard is enabled
+     */
+    public boolean isProfilerDashboardEnabled() {
+        return profilerDashboardEnabled;
+    }
+
+    /**
+     * Start the server and initialize all components
      */
     public void start() throws IOException {
+        // Reset stop flag
+        isStopped = false;
+        isRunning = true;
+
         initializeServer();
         CabinLogger.info("Server started on port " + port);
+
+        // Initialize profiler if enabled
+        if (profilerEnabled) {
+            // Make sure the profiler is enabled
+            ServerProfiler.INSTANCE.setEnabled(true);
+
+            // Set up profiler dashboard if enabled
+            if (profilerDashboardEnabled) {
+                setupDashboard();
+            }
+        }
 
         // Event loop
         while (isRunning) {
@@ -329,35 +402,60 @@ public class CabinServer {
     }
 
 
+    /**
+     * Handle a client request, integrating profiler metrics
+     */
     private void handleClientRequest(SocketChannel clientChannel, ByteArrayOutputStream byteArrayOutputStream) {
+        // Start request profiling if enabled
+        if (profilerEnabled) {
+            ServerProfiler.INSTANCE.startRequest();
+        }
+
         try {
             Request request = new Request(byteArrayOutputStream);
             Response response = new Response(clientChannel);
 
-            // Run global middleware chain first
-            MiddlewareChain globalChain = new MiddlewareChain(globalMiddlewares, (req, res) -> {
-                boolean handled = false;
-                for (Router router : routers) {
-                    if (router.handleRequest(req, res)) {
-                        handled = true;
-                        break;
-                    }
-                }
-                if (!handled) {
-                    res.setStatusCode(404);
-                    res.writeBody("Not Found");
-                    res.send();
-                }
-            });
+            // Create final handler that handles case when no route matches
+            Handler finalHandler = (req, res) -> {
+                res.setStatusCode(404);
+                res.writeBody("Not Found");
+                res.send();
+            };
 
-            globalChain.next(request, response);
+            // Create combined middleware list
+            List<Middleware> allMiddleware = new ArrayList<>(globalMiddlewares);
+
+            // Add routers as middleware
+            allMiddleware.addAll(routers);
+
+            // Create and execute the middleware chain
+            MiddlewareChain chain = new MiddlewareChain(allMiddleware, finalHandler);
+            chain.next(request, response);
+
+            // For example purposes, assuming status code and path are available:
+            int statusCode = response.getStatusCode(); // This should be the actual status code
+            String path = request.getPath(); // This should be the actual path
+
+            // End request profiling if enabled
+            if (profilerEnabled) {
+                ServerProfiler.INSTANCE.endRequest(path, statusCode);
+            }
+
         } catch (IOException e) {
             CabinLogger.error("Error processing client request: " + e.getMessage(), e);
             sendInternalServerError(clientChannel);
+            // Make sure to end request profiling even on exception
+            if (profilerEnabled) {
+                ServerProfiler.INSTANCE.endRequest("error", 500);
+            }
         } catch (Throwable e) {
             CabinLogger.error("Error processing client request: " + e.getMessage(), e);
             GlobalExceptionHandler.handleException(e, new Response(clientChannel));
             sendInternalServerError(clientChannel);
+            // Make sure to end request profiling even on exception
+            if (profilerEnabled) {
+                ServerProfiler.INSTANCE.endRequest("error", 500);
+            }
         }
     }
 
@@ -422,31 +520,38 @@ public class CabinServer {
     /**
      * Add a router to the server
      *
-     * @param router
-     * @throws IllegalArgumentException
+     * @param router the router to add
+     * @throws IllegalArgumentException if router is null or already added
      */
     public void use(Router router) {
         // Validate the router
         if (router == null) {
             throw new IllegalArgumentException("Router cannot be null");
         }
-        // Validate the router to ensure not adding the same router multiple times
+
+        // Check for duplicate router
         if (routers.contains(router)) {
             throw new IllegalArgumentException("Router already added");
         }
 
-        // Validate the router with the same path
-        for (Router r : routers) {
-            Set<String> endpoint = r.getEndpoint();
-            for (String path : endpoint) {
-                if (router.getEndpoint().contains(path)) {
-                    throw new IllegalArgumentException(String.format("Router with path %s already exists", path));
+        // Check for conflicting routes
+        for (Router existingRouter : routers) {
+            Set<String> existingEndpoints = existingRouter.getEndpoint();
+            Set<String> newEndpoints = router.getEndpoint();
+
+            for (String newPath : newEndpoints) {
+                if (existingEndpoints.contains(newPath)) {
+                    throw new IllegalArgumentException(
+                            String.format("Conflicting route found: %s", newPath));
                 }
             }
         }
+
+        // Apply global middleware to the router
         for (Middleware middleware : globalMiddlewares) {
             router.use(middleware);
         }
+
         routers.add(router);
     }
 
@@ -457,7 +562,6 @@ public class CabinServer {
      */
     public void use(Middleware middleware) {
         globalMiddlewares.add(middleware);
-        MiddlewareRegistry.register(middleware);
         for (Router router : routers) {
             router.use(middleware);
         }
@@ -483,6 +587,9 @@ public class CabinServer {
         }
     }
 
+    /**
+     * Stop the server and clean up resources
+     */
     private void shutdown() {
         CabinLogger.info("Initiating server shutdown...");
 
@@ -531,6 +638,13 @@ public class CabinServer {
             CabinLogger.error("Error shutting down scheduler: " + e.getMessage(), e);
         }
 
+        // Stop profiler if it's running
+        if (profilerEnabled) {
+            ServerProfiler.INSTANCE.stop();
+        }
+
+        // Mark server as stopped
+        isStopped = true;
         CabinLogger.info("Server shutdown complete.");
     }
 
@@ -541,13 +655,81 @@ public class CabinServer {
      * This method signals the event loop to exit and shuts down the server.
      * The server will stop accepting new connections and close all active connections.
      * The server will also shut down the worker pool and scheduler.
-     * This method is non-blocking and returns immediately.
+     * This method blocks until the server is fully stopped or timeout occurs.
+     *
+     * @return true if server stopped successfully, false if timeout occurred
      */
-    public void stop() {
+    public boolean stop() {
+        return stop(5000); // Default timeout of 5 seconds
+    }
+
+    /**
+     * Stop the server with a specified timeout
+     *
+     * @param timeoutMillis maximum time to wait for server to stop in milliseconds
+     * @return true if server stopped successfully, false if timeout occurred
+     */
+    public boolean stop(long timeoutMillis) {
         CabinLogger.info("Stop signal received. Shutting down server...");
-        isRunning = false; // Signal the event loop to exit
-        if (selector != null) {
-            selector.wakeup(); // Wake up the selector to process the change
+
+        // Create a new thread to handle shutdown if we're on the server thread
+        Thread shutdownThread = new Thread(() -> {
+            // Signal the event loop to exit
+            isRunning = false;
+
+            // Wake up the selector to process the change
+            if (selector != null) {
+                selector.wakeup();
+            }
+
+            // Wait for server to fully stop
+            long startTime = System.currentTimeMillis();
+            while (!isStopped && (System.currentTimeMillis() - startTime) < timeoutMillis) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+
+            // If server didn't stop in time, force shutdown
+            if (!isStopped) {
+                CabinLogger.warn("Server did not stop gracefully within timeout, forcing shutdown...");
+                shutdown();
+                isStopped = true;
+            }
+        });
+
+        shutdownThread.setDaemon(true);
+        shutdownThread.start();
+
+        // Wait for shutdown to complete
+        try {
+            shutdownThread.join(timeoutMillis);
+            return isStopped;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            CabinLogger.error("Interrupted while waiting for server to stop", e);
+            return false;
         }
+    }
+
+    public int getPort() {
+        return port;
+    }
+
+    /**
+     * Set up the profiler dashboard
+     */
+    private void setupDashboard() {
+        // Create dashboard reporter and add to router
+        DashboardReporter dashboardReport = new DashboardReporter();
+
+        // Add the dashboard reporter to ServerProfiler
+        ServerProfiler.INSTANCE.addReporter(dashboardReport);
+
+        // Add the dashboard router to the server
+        this.use(dashboardReport.getRouter());
     }
 }

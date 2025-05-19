@@ -10,6 +10,7 @@ import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.GZIPOutputStream;
 
 /**
@@ -21,8 +22,10 @@ import java.util.zip.GZIPOutputStream;
  */
 public class Response {
     private int statusCode = 200;
-    private Map<String, String> headers = new HashMap<>();
-    private Map<String, String> cookies = new HashMap<>();
+    private ConcurrentHashMap
+            <String, String> headers = new ConcurrentHashMap<>();
+    private ConcurrentHashMap
+            <String, String> cookies = new ConcurrentHashMap<>();
     private StringBuilder body = new StringBuilder();
     private final SocketChannel clientChannel;
     private boolean compressionEnabled = false;
@@ -54,7 +57,7 @@ public class Response {
     }
 
     public void setHeader(String key, String value) {
-        headers.put(key, value);
+            headers.put(key, value);
     }
 
     public void setCookie(String name, String value) {
@@ -228,7 +231,13 @@ public class Response {
      */
     public void send(Object content) {
         try {
-            writeBody(content);
+            if(content instanceof String) {
+                writeBody((String) content);
+            } else if (content instanceof byte[]) {
+                write((byte[]) content, 0, ((byte[]) content).length);
+            } else {
+                writeBody(content);
+            }
         } catch (Throwable e) {
             CabinLogger.error("Error sending response: " + e.getMessage(), e);
         }
@@ -247,8 +256,15 @@ public class Response {
         headers.put(key, value);
     }
 
+    public String getHeader(String key) {
+        return headers.get(key);
+    }
+
     public boolean isCompressionEnabled() {
         return compressionEnabled;
     }
 
+    public int getStatusCode() {
+        return statusCode;
+    }
 }

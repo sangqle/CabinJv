@@ -116,4 +116,16 @@ public class CabinWorkerPool {
     public int getLargestPoolSize() {
         return threadPoolExecutor.getLargestPoolSize();
     }
+
+    public int getActiveThreads() {
+        return threadPoolExecutor.getActiveCount();
+    }
+
+    public int getQueueSize() {
+        return threadPoolExecutor.getQueue().size();
+    }
+
+    public long getCompletedTasks() {
+        return threadPoolExecutor.getCompletedTaskCount();
+    }
 }
