@@ -20,13 +20,13 @@ import java.util.List;
  * @version 1.0.0
  * @since 2024-12-24
  */
-public class CORS implements Middleware {
+public class Cors implements Middleware {
     private final List<String> allowedOrigins;
     private final List<String> allowedMethods;
     private final List<String> allowedHeaders;
     private final boolean allowCredentials;
 
-    public CORS(List<String> allowedOrigins, List<String> allowedMethods, List<String> allowedHeaders, boolean allowCredentials) {
+    public Cors(List<String> allowedOrigins, List<String> allowedMethods, List<String> allowedHeaders, boolean allowCredentials) {
         this.allowedOrigins = allowedOrigins;
         this.allowedMethods = allowedMethods;
         this.allowedHeaders = allowedHeaders;
