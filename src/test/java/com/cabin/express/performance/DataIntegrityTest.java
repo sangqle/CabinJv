@@ -5,6 +5,7 @@ import com.cabin.express.router.Router;
 import com.cabin.express.server.CabinServer;
 import com.cabin.express.util.ServerTestUtil;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import org.junit.jupiter.api.AfterEach;
@@ -26,34 +27,39 @@ import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.google.gson.JsonSyntaxException;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+
 /**
  * ## Test Class Overview
  * This test class performs comprehensive data integrity testing under high load conditions:
  * 1. **Multiple Concurrent Users Test**: Simulates multiple users performing read, write, and delete operations concurrently to test for race conditions and data corruption.
  * 2. **Batch Operations Test**: Tests the ability to handle multiple large batches of data simultaneously.
  * 3. **Race Conditions Test**: Forces multiple threads to contend for the same keys to test thread safety under extreme conditions.
- *
+ * <p>
  * ## Test Features
  * 1. **Realistic User Behavior**:
- *     - Mix of read, write, and delete operations with realistic distribution
- *     - Variable data sizes
- *     - Randomized timing between operations
- *
+ * - Mix of read, write, and delete operations with realistic distribution
+ * - Variable data sizes
+ * - Randomized timing between operations
+ * <p>
  * 2. **Comprehensive Validation**:
- *     - Tracks every operation and its expected outcome
- *     - Verifies final data state matches expected state
- *     - Reports detailed statistics on success rates and data integrity
- *
+ * - Tracks every operation and its expected outcome
+ * - Verifies final data state matches expected state
+ * - Reports detailed statistics on success rates and data integrity
+ * <p>
  * 3. **Server Stress Testing**:
- *     - Configurable number of concurrent users and operations
- *     - Randomized workload patterns
- *     - Batch operations for high throughput testing
- *
+ * - Configurable number of concurrent users and operations
+ * - Randomized workload patterns
+ * - Batch operations for high throughput testing
+ * <p>
  * 4. **Detailed Reporting**:
- *     - Success rates by operation type
- *     - Detailed logs of data integrity issues
- *     - Performance metrics
- *
+ * - Success rates by operation type
+ * - Detailed logs of data integrity issues
+ * - Performance metrics
+ * <p>
  * This test class will help you identify any thread safety issues in your server implementation while processing high volumes of concurrent requests.
  */
 
@@ -64,8 +70,9 @@ public class DataIntegrityTest {
     private int port;
     private String baseUrl;
     private Thread serverThread;
-    private final Map<String, String> sharedDataStore = new ConcurrentHashMap<>();
-    private final Gson gson = new Gson();
+    private final ConcurrentHashMap<String, String> sharedDataStore = new ConcurrentHashMap<>();
+    private final Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+
     private final Random random = new Random();
 
     // Test configuration
@@ -117,6 +124,28 @@ public class DataIntegrityTest {
         });
 
         // Data store operations
+        // 5. Batch operations endpoint
+        router.post("/data/batch", (req, res) -> {
+            String body = req.getBodyAsString();
+            // Use TypeToken for proper Map deserialization
+            java.lang.reflect.Type mapType = new TypeToken<Map<String, String>>() {
+            }.getType();
+            Map<String, String> batch = gson.fromJson(body, mapType);
+
+            // Synchronize access to shared data store
+            synchronized (sharedDataStore) {
+                sharedDataStore.putAll(batch);
+            }
+
+            res.setHeader("Content-Type", "application/json");
+            JsonObject result = new JsonObject();
+            result.addProperty("success", true);
+            result.addProperty("keysProcessed", batch.size());
+            result.addProperty("operation", "batch");
+
+            // Log the batch operation
+            res.send(result);
+        });
 
         // 1. Create or update data
         router.post("/data/:key", (req, res) -> {
@@ -187,25 +216,6 @@ public class DataIntegrityTest {
             res.send(new ArrayList<>(sharedDataStore.keySet()));
         });
 
-        // 5. Batch operations endpoint
-        router.post("/data/batch", (req, res) -> {
-            String body = req.getBodyAsString();
-            // Use TypeToken for proper Map deserialization
-            java.lang.reflect.Type mapType = new TypeToken<Map<String, String>>(){}.getType();
-            Map<String, String> batch = gson.fromJson(body, mapType);
-            
-            // Synchronize access to shared data store
-            synchronized(sharedDataStore) {
-                sharedDataStore.putAll(batch);
-            }
-            
-            res.setHeader("Content-Type", "application/json");
-            JsonObject result = new JsonObject();
-            result.addProperty("success", true);
-            result.addProperty("keysProcessed", batch.size());
-            result.addProperty("operation", "batch");
-            res.send(result);
-        });
 
         server.use(router);
     }
@@ -287,6 +297,11 @@ public class DataIntegrityTest {
                 .isTrue();
     }
 
+    /**
+     * Test for batch operations to ensure they are handled correctly.
+     *
+     * @throws Exception
+     */
     @Test
     void shouldHandleBatchOperationsCorrectly() throws Exception {
         // 1. Create HTTP client
@@ -300,7 +315,7 @@ public class DataIntegrityTest {
         List<Map<String, String>> batches = new ArrayList<>();
 
         for (int batchNum = 0; batchNum < numBatches; batchNum++) {
-            Map<String, String> batch = new ConcurrentHashMap<>();
+            ConcurrentHashMap<String, String> batch = new ConcurrentHashMap<>();
             for (int i = 0; i < batchSize; i++) {
                 String key = "batch-" + batchNum + "-key-" + i;
                 String value = generateRandomString(10, 100);
@@ -312,10 +327,10 @@ public class DataIntegrityTest {
         // 3. Process batches concurrently
         ExecutorService executor = Executors.newFixedThreadPool(numBatches);
         List<Future<Boolean>> futures = new ArrayList<>();
-        
+
         // Track successful batches
         AtomicInteger successfulBatches = new AtomicInteger(0);
-        
+
         for (Map<String, String> batch : batches) {
             futures.add(executor.submit(() -> {
                 try {
@@ -346,27 +361,24 @@ public class DataIntegrityTest {
                 CabinLogger.error("Exception waiting for batch: " + e.getMessage(), e);
             }
         }
-        
-        CabinLogger.info("Batch processing completed: " + successfulBatches.get() + 
-                         " successful, " + failedBatches + " failed");
+
+        CabinLogger.info("Batch processing completed: " + successfulBatches.get() +
+                " successful, " + failedBatches + " failed");
 
         // 5. Verify all data was stored correctly
         Map<String, String> actualData = fetchAllData(client);
-        
+
         Map<String, String> expectedData = new ConcurrentHashMap<>();
         batches.forEach(expectedData::putAll);
-        
-        CabinLogger.info("Expected data size: " + expectedData.size());
-        CabinLogger.info("Actual data size: " + actualData.size());
-        
+
         // 6. Validate data integrity using the comprehensive verification method
         verifyDataIntegrity(expectedData, actualData);
 
         // 7. Clean up
         executor.shutdown();
         assertThat(executor.awaitTermination(1, TimeUnit.MINUTES))
-            .withFailMessage("Executor service failed to terminate")
-            .isTrue();
+                .withFailMessage("Executor service failed to terminate")
+                .isTrue();
     }
 
     @Test
@@ -593,10 +605,10 @@ public class DataIntegrityTest {
             String jsonData = gson.toJson(batchData);
 
             HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/data/batch"))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(jsonData))
-                .build();
+                    .uri(URI.create(baseUrl + "/data/batch"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonData))
+                    .build();
 
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
@@ -624,7 +636,8 @@ public class DataIntegrityTest {
             throw new RuntimeException("Failed to fetch keys, status: " + keysResponse.statusCode());
         }
 
-        List<String> keys = gson.fromJson(keysResponse.body(), new TypeToken<List<String>>(){}.getType());
+        List<String> keys = gson.fromJson(keysResponse.body(), new TypeToken<List<String>>() {
+        }.getType());
 
         // 2. Fetch each key's value
         Map<String, String> result = new ConcurrentHashMap<>();
@@ -645,6 +658,12 @@ public class DataIntegrityTest {
         return result;
     }
 
+    /**
+     * Verifies the integrity of the data in the final state against the expected state.
+     *
+     * @param expected
+     * @param actual
+     */
     private void verifyDataIntegrity(Map<String, String> expected, Map<String, String> actual) {
         // Report on any keys that should exist but don't
         Set<String> missingKeys = new HashSet<>(expected.keySet());
@@ -654,7 +673,7 @@ public class DataIntegrityTest {
             CabinLogger.warn("Missing keys in final state: " + missingKeys.size());
             // Log a sample of missing keys (up to 10)
             missingKeys.stream().limit(10).forEach(key ->
-                CabinLogger.warn("  Missing key: " + key + ", expected value: " + expected.get(key))
+                    CabinLogger.warn("  Missing key: " + key + ", expected value: " + expected.get(key))
             );
         }
 
@@ -666,7 +685,7 @@ public class DataIntegrityTest {
             CabinLogger.warn("Unexpected keys in final state: " + unexpectedKeys.size());
             // Log a sample of unexpected keys (up to 10)
             unexpectedKeys.stream().limit(10).forEach(key ->
-                CabinLogger.warn("  Unexpected key: " + key + ", value: " + actual.get(key))
+                    CabinLogger.warn("  Unexpected key: " + key + ", value: " + actual.get(key))
             );
         }
 
@@ -684,9 +703,9 @@ public class DataIntegrityTest {
                 if (mismatchCount.get() <= 10) { // Limit logging to 10 mismatches
                     CabinLogger.warn("Value mismatch for key: " + key);
                     CabinLogger.warn("  Expected: " + (expectedValue.length() > 100 ?
-                        expectedValue.substring(0, 100) + "..." : expectedValue));
+                            expectedValue.substring(0, 100) + "..." : expectedValue));
                     CabinLogger.warn("  Actual: " + (actualValue.length() > 100 ?
-                        actualValue.substring(0, 100) + "..." : actualValue));
+                            actualValue.substring(0, 100) + "..." : actualValue));
                 }
             }
         }
@@ -697,7 +716,7 @@ public class DataIntegrityTest {
 
         // Log overall integrity summary
         double integrityPercentage = (commonKeys.size() - mismatchCount.get()) * 100.0 /
-            (expected.size() + unexpectedKeys.size());
+                (expected.size() + unexpectedKeys.size());
 
         CabinLogger.info("Data Integrity Summary:");
         CabinLogger.info("  Expected Keys: " + expected.size());
@@ -715,8 +734,8 @@ public class DataIntegrityTest {
         } else {
             // Allow for some minor inconsistencies in high concurrency
             assertThat(integrityPercentage)
-                .withFailMessage("Data integrity too low: %.2f%%", integrityPercentage)
-                .isGreaterThanOrEqualTo(95.0);
+                    .withFailMessage("Data integrity too low: %.2f%%", integrityPercentage)
+                    .isGreaterThanOrEqualTo(95.0);
         }
     }
 
