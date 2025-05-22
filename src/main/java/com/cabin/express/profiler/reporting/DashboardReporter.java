@@ -19,7 +19,6 @@ public class DashboardReporter implements MetricsReporter {
     public DashboardReporter() {
         // Initialize router with admin prefix
         this.adminRouter = new Router();
-        this.adminRouter.setPrefix("/admin");
         setupRoutes();
     }
 

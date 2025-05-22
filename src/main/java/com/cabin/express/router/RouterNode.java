@@ -12,7 +12,6 @@ public class RouterNode {
 
     // Dynamic child (path parameter, like :userId)
     private RouterNode dynamicChild;
-    private String paramName;
 
     // Wildcard child (catch-all)
     private RouterNode wildcardChild;
@@ -27,6 +26,9 @@ public class RouterNode {
     private boolean isMountPoint;
     private Router mountedRouter;
     private String mountPrefix;
+
+    // Parameter name for dynamic routes
+    private String paramName;
 
     // Add a route with handler
     public void addHandler(String method, Handler handler) {
@@ -46,7 +48,7 @@ public class RouterNode {
     public RouterNode getOrCreateDynamicChild(String paramName) {
         if (dynamicChild == null) {
             dynamicChild = new RouterNode();
-            this.paramName = paramName;
+            this.paramName = paramName; // Store the parameter name
         }
         return dynamicChild;
     }

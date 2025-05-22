@@ -150,6 +150,40 @@ public class RouterTest {
     }
 
     @Test
+    void shouldHandleNestedParameterizedRoutes() throws IOException, InterruptedException {
+        // Setup parent router
+        Router apiRouter = new Router();
+
+        // Setup child router
+        Router userRouter = new Router();
+
+        // Add a simple route to the child router that uses parent's parameter
+        userRouter.get("/info", (req, res) -> {
+            String userId = req.getPathParam("userId");
+            res.send("User info for: " + userId);
+        });
+
+        // Mount with parameterized path
+        apiRouter.use("/users/:userId", userRouter);
+
+        // Mount on the server
+        server.use("/api", apiRouter);
+
+        // Test the nested parameterized route
+        HttpClient client = HttpClient.newHttpClient();
+        HttpResponse<String> response = client.send(
+                HttpRequest.newBuilder()
+                        .uri(URI.create(baseUrl + "/api/users/123/info"))
+                        .GET()
+                        .build(),
+                HttpResponse.BodyHandlers.ofString()
+        );
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body()).isEqualTo("User info for: 123");
+    }
+
+    @Test
     void shouldHandleWildcardRoutesInNestedContext() throws IOException, InterruptedException {
         // Setup routers
         Router apiRouter = new Router();
@@ -180,7 +214,6 @@ public class RouterTest {
     void shouldRespectRouterPrefixWithNestedRouters() throws IOException, InterruptedException {
         // Setup parent router with prefix
         Router apiRouter = new Router();
-        apiRouter.setPrefix("/api"); // Set prefix directly on router
 
         // Setup child router
         Router productRouter = new Router();
@@ -197,7 +230,7 @@ public class RouterTest {
         // Test route with router's prefix
         HttpClient client = HttpClient.newHttpClient();
         HttpResponse<String> response = client.send(
-                HttpRequest.newBuilder().uri(URI.create(baseUrl + "/api/products/xyz123")).GET().build(),
+                HttpRequest.newBuilder().uri(URI.create(baseUrl + "/products/xyz123")).GET().build(),
                 HttpResponse.BodyHandlers.ofString()
         );
 
