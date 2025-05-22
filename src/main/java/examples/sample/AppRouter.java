@@ -19,7 +19,6 @@ public class AppRouter {
     }
 
     protected static void setRouter() {
-        router.setPrefix("/api/v1");
         router.post("/users", (req, res) -> {
             UserDTO userDTO = req.getBodyAs(UserDTO.class);
             JsonObject json = new JsonObject();

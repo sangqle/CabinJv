@@ -9,35 +9,13 @@ import com.cabin.express.loggger.CabinLogger;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class Router implements Middleware {
     private final String name = "Router";
-    private String prefix = "";
-    private final ConcurrentHashMap<String, List<Route>> routes;
-    private final List<Middleware> middlewares;
+    private final RouterNode root = new RouterNode();
+    private final List<Middleware> globalMiddlewares = new ArrayList<>();
 
-    public Router() {
-        this.routes = new ConcurrentHashMap<>();
-        this.middlewares = new ArrayList<>();
-    }
-
-    // Route class to store route information
-    private static class Route {
-        final Pattern pattern;
-        final Handler handler;
-        final List<Middleware> middlewares;
-
-        Route(Pattern pattern, Handler handler) {
-            this.pattern = pattern;
-            this.handler = handler;
-            this.middlewares = new ArrayList<>();
-        }
-    }
-
-    // Support for all HTTP methods
+    // HTTP methods
     public Router all(String path, Handler handler) {
         addRoute("ALL", path, handler);
         return this;
@@ -73,163 +51,290 @@ public class Router implements Middleware {
         return this;
     }
 
+    // Methods with middleware 
+    public Router get(String path, Middleware middleware, Handler handler) {
+        RouterNode node = insertPath(path);
+        node.addMiddleware(middleware);
+        node.addHandler("GET", handler);
+        return this;
+    }
+
+    public Router get(String path, List<Middleware> middlewares, Handler handler) {
+        RouterNode node = insertPath(path);
+        for (Middleware middleware : middlewares) {
+            node.addMiddleware(middleware);
+        }
+        node.addHandler("GET", handler);
+        return this;
+    }
+
     // Middleware support
     public Router use(Middleware middleware) {
-        middlewares.add(middleware);
+        globalMiddlewares.add(middleware);
         return this;
     }
 
-    // Route-specific middleware
-    public Router use(String path, Middleware... middlewares) {
-        for (String method : routes.keySet()) {
-            List<Route> methodRoutes = routes.get(method);
-            for (Route route : methodRoutes) {
-                if (route.pattern.pattern().equals(pathToPattern(path))) {
-                    Collections.addAll(route.middlewares, middlewares);
-                }
+    // Mount sub-router
+    public Router use(Router childRouter) {
+        return use("/", childRouter);
+    }
+
+    public Router use(String path, Router childRouter) {
+        // Normalize the path
+        String normalizedPath = normalizePath(path);
+
+        // Insert the path into the trie
+        RouterNode node = insertPath(normalizedPath);
+
+        // Mount the child router at this node
+        node.mountRouter(normalizedPath, childRouter);
+
+        return this;
+    }
+
+    // Add a route to the trie
+    private void addRoute(String method, String path, Handler handler) {
+        RouterNode node = insertPath(path);
+        node.addHandler(method.toUpperCase(), handler);
+    }
+
+    // Insert a path into the trie, returning the leaf node
+    private RouterNode insertPath(String path) {
+        String normalizedPath = normalizePath(path);
+        String[] segments = normalizedPath.split("/");
+
+        RouterNode current = root;
+
+        for (String segment : segments) {
+            if (segment.isEmpty()) continue; // Skip empty segments
+
+            if (segment.startsWith(":")) {
+                // Dynamic parameter
+                String paramName = segment.substring(1);
+                current = current.getOrCreateDynamicChild(paramName);
+            } else if (segment.equals("*")) {
+                // Wildcard
+                current = current.getOrCreateWildcardChild();
+                break; // Wildcard consumes the rest of the path
+            } else {
+                // Static path
+                current = current.getOrCreateStaticChild(segment);
             }
         }
-        return this;
+
+        return current;
     }
 
-    private void addRoute(String method, String path, Handler handler) {
-        String fullPath = prefix.isEmpty() ? path : prefix + path;
-        Pattern pattern = Pattern.compile(pathToPattern(fullPath));
-        routes.computeIfAbsent(method, k -> new ArrayList<>())
-                .add(new Route(pattern, handler));
-    }
-
-    private String pathToPattern(String path) {
-        // Convert Express-style path params (:param) to regex
-        // Also handle optional parameters and wildcards
-        return "^" + path
-                .replaceAll(":([^/]+)\\?", "(?<$1>[^/]*)?")
-                .replaceAll(":([^/]+)", "(?<$1>[^/]+)")
-                .replaceAll("\\*", ".*")
-                + "$";
+    // Helper to normalize paths
+    private String normalizePath(String path) {
+        if (path == null || path.isEmpty()) {
+            return "/";
+        }
+        path = path.startsWith("/") ? path : "/" + path;
+        path = path.endsWith("/") && path.length() > 1 ? path.substring(0, path.length() - 1) : path;
+        return path;
     }
 
     @Override
     public void apply(Request request, Response response, MiddlewareChain next) throws IOException {
-        String method = request.getMethod();
-        String path = request.getPath();
-
-        // Try method-specific routes
-        if (tryRoute(method, path, request, response)) {
-            return;
-        }
-
-        // Try ALL routes
-        if (tryRoute("ALL", path, request, response)) {
-            return;
-        }
-
-        // No matching route found, pass to next middleware
-        next.next(request, response);
+        // First apply global middlewares
+        MiddlewareChain globalChain = new MiddlewareChain(globalMiddlewares,
+                (req, res) -> findAndExecuteRoute(req, res, next));
+        globalChain.next(request, response);
     }
 
-    private boolean tryRoute(String method, String path, Request request, Response response) {
-        List<Route> methodRoutes = routes.getOrDefault(method, Collections.emptyList());
+    private void findAndExecuteRoute(Request request, Response response, MiddlewareChain fallbackNext)
+            throws IOException {
+        String method = request.getMethod();
+        String path = request.getPath();
+        String normalizedPath = normalizePath(path);
+        String[] segments = normalizedPath.split("/");
 
-        for (Route route : methodRoutes) {
-            Matcher matcher = route.pattern.matcher(path);
-            if (matcher.matches()) {
-                // Extract path parameters
-                Map<String, String> params = extractPathParams(matcher);
-                request.setPathParams(params);
+        // Context to collect parameters and middlewares during traversal
+        Map<String, String> pathParams = new HashMap<>();
+        List<Middleware> routeMiddlewares = new ArrayList<>();
 
-                // Create middleware chain including route-specific middlewares
-                List<Middleware> routeChain = new ArrayList<>(middlewares);
-                routeChain.addAll(route.middlewares);
-                routeChain.add((req, res, chain) -> {
-                    try {
-                        route.handler.handle(req, res);
-                    } catch (Exception e) {
-                        CabinLogger.error("Error in route handler: " + e.getMessage(), e);
-                        res.setStatusCode(500);
-                        res.writeBody("Internal Server Error");
-                        res.send();
+        // Find matching route in the trie
+        RouterNode matchedNode = findRoute(root, segments, 0, pathParams, routeMiddlewares);
+
+        if (matchedNode != null) {
+            // Check if this is a mount point for a sub-router
+            if (matchedNode.isMountPoint()) {
+                // Process mount point
+                Router mountedRouter = matchedNode.getMountedRouter();
+                String mountPrefix = matchedNode.getMountPrefix();
+
+                // Extract actual mount prefix with real parameter values
+                String actualMountPrefix = replaceMountPrefixWithActualValues(mountPrefix, pathParams);
+        
+                // Determine the sub-path by removing the mount prefix from the path
+                String subPath;
+                if (actualMountPrefix.equals("/")) {
+                    // If mounted at root, use full path
+                    subPath = path;
+                } else if (path.length() > actualMountPrefix.length()) {
+                    // If path is longer than mount prefix, extract the remaining part
+                    subPath = path.substring(actualMountPrefix.length());
+                    if (!subPath.startsWith("/")) {
+                        subPath = "/" + subPath;
                     }
+                } else {
+                    // Path exactly matches mount prefix
+                    subPath = "/";
+                }
+
+            // Save original path for restoration later if needed
+            String originalPath = request.getPath();
+            String originalBaseUrl = request.getBaseUrl();
+
+            // Update request for child router
+            request.setBaseUrl(request.getBaseUrl() + actualMountPrefix);
+            request.setPath(subPath);
+
+            // Important: Set path parameters for the child router
+            for (Map.Entry<String, String> param : pathParams.entrySet()) {
+                request.setPathParam(param.getKey(), param.getValue());
+            }
+
+            // Create a chain that will process the child router
+            MiddlewareChain mountChain = new MiddlewareChain(routeMiddlewares,
+                    (req, res) -> {
+                        mountedRouter.apply(req, res, new MiddlewareChain(List.of(),
+                                (innerReq, innerRes) -> {
+                                    // If not handled, restore original path and continue
+                                    request.setPath(originalPath);
+                                    request.setBaseUrl(originalBaseUrl);
+                                    fallbackNext.next(request, response);
+                                }));
                 });
 
-                try {
-                    new MiddlewareChain(routeChain, (req, res) -> {
-                        CabinLogger.warn("No handler found for route: " + req.getPath());
-                        res.setStatusCode(404);
-                        res.writeBody("Not Found");
-                        res.send();
-                    }).next(request, response);
+            mountChain.next(request, response);
+            return;
+        }
 
-                    return true;
+        // Get handler for requested method
+        Handler handler = matchedNode.getHandler(method);
+        if (handler == null) {
+            handler = matchedNode.getHandler("ALL"); // Try ALL if method-specific not found
+        }
+
+        if (handler != null) {
+            // Set path parameters
+            for (Map.Entry<String, String> param : pathParams.entrySet()) {
+                request.setPathParam(param.getKey(), param.getValue());
+            }
+
+            // Add the route handler as the final middleware
+            Handler finalHandler = handler;
+            routeMiddlewares.add((req, res, chain) -> {
+                try {
+                    finalHandler.handle(req, res);
                 } catch (Exception e) {
-                    CabinLogger.error("Error processing request: " + e.getMessage(), e);
-                    try {
-                        response.setStatusCode(500);
-                        response.writeBody("Internal Server Error");
-                        response.send();
-                    } catch (Exception ex) {
-                        CabinLogger.error("Error sending error response: " + ex.getMessage(), ex);
-                    }
-                    return true;
+                    CabinLogger.error("Error in route handler: " + e.getMessage(), e);
+                    res.setStatusCode(500);
+                    res.writeBody("Internal Server Error");
+                    res.send();
+                }
+            });
+
+            // Execute the middleware chain
+            MiddlewareChain routeChain = new MiddlewareChain(routeMiddlewares, null);
+            routeChain.next(request, response);
+            return;
+        }
+    }
+
+    // No matching route found, pass to next middleware
+    fallbackNext.next(request, response);
+}
+
+    /**
+     * Replace parameter placeholders in the mount prefix with their actual values
+     */
+    private String replaceMountPrefixWithActualValues(String mountPrefix, Map<String, String> pathParams) {
+        String result = mountPrefix;
+
+        // Split the path into segments
+        String[] segments = mountPrefix.split("/");
+
+        for (int i = 0; i < segments.length; i++) {
+            String segment = segments[i];
+            if (segment.isEmpty()) continue;
+
+            if (segment.startsWith(":")) {
+                String paramName = segment.substring(1);
+                String paramValue = pathParams.get(paramName);
+
+                if (paramValue != null) {
+                    // Replace the parameter placeholder with its actual value
+                    result = result.replace(":" + paramName, paramValue);
                 }
             }
         }
-        return false;
+
+        return result;
     }
 
-    private Map<String, String> extractPathParams(Matcher matcher) {
-        Map<String, String> params = new HashMap<>();
-        for (String groupName : getNamedGroups(matcher.pattern())) {
-            String value = matcher.group(groupName);
-            if (value != null) {
-                params.put(groupName, value);
+    private RouterNode findRoute(RouterNode node, String[] segments, int index,
+                                 Map<String, String> pathParams, List<Middleware> middlewares) {
+        // Add this node's middlewares
+        middlewares.addAll(node.getMiddlewares());
+
+        // If we've reached the end of the path
+        if (index >= segments.length) {
+            return node;
+        }
+
+        String segment = segments[index];
+        if (segment.isEmpty()) {
+            // Skip empty segments
+            return findRoute(node, segments, index + 1, pathParams, middlewares);
+        }
+
+        // Try static child (exact match)
+        RouterNode staticChild = node.getStaticChild(segment);
+        if (staticChild != null) {
+            RouterNode result = findRoute(staticChild, segments, index + 1, pathParams, middlewares);
+            if (result != null) {
+                return result;
             }
         }
-        return params;
-    }
 
-    private Set<String> getNamedGroups(Pattern pattern) {
-        Set<String> groups = new HashSet<>();
-        String patternString = pattern.pattern();
-        Matcher m = Pattern.compile("\\(\\?<([^>]+)>").matcher(patternString);
-        while (m.find()) {
-            groups.add(m.group(1));
+        // Try dynamic child (parameter)
+        RouterNode dynamicChild = node.getDynamicChild();
+        if (dynamicChild != null) {
+            String paramName = node.getParamName();
+            pathParams.put(paramName, segment);
+            RouterNode result = findRoute(dynamicChild, segments, index + 1, pathParams, middlewares);
+            if (result != null) {
+                return result;
+            }
+            // Remove the param if this path doesn't lead to a match
+            pathParams.remove(paramName);
         }
-        return groups;
-    }
 
-    public void setPrefix(String prefix) {
-        if (prefix == null || prefix.isEmpty()) {
-            return;
+        // Try wildcard child (matches rest of path)
+        RouterNode wildcardChild = node.getWildcardChild();
+        if (wildcardChild != null) {
+            // Collect all remaining segments
+            StringBuilder wildcardValue = new StringBuilder(segment);
+            for (int i = index + 1; i < segments.length; i++) {
+                wildcardValue.append("/").append(segments[i]);
+            }
+            pathParams.put("wildcard", wildcardValue.toString());
+            return wildcardChild;
         }
-        this.prefix = "/" + prefix.replaceAll("^/+", "").replaceAll("/+$", "");
-    }
 
-    public String getPrefix() {
-        return prefix;
+        // Check if this is a mount point - important for nested routes with parameters
+        if (node.isMountPoint()) {
+            return node;
+        }
+
+        // If we reach here, no match was found
+        return null;
     }
 
     public String getName() {
         return name;
     }
-
-    public Map<String, List<Route>> getRoutes() {
-        return routes;
-    }
-
-    public List<Middleware> getMiddlewares() {
-        return middlewares;
-    }
-
-    public HashSet<String> getEndpoint() {
-        HashSet<String> endpoints = new HashSet<>();
-        for (String method : routes.keySet()) {
-            List<Route> methodRoutes = routes.get(method);
-            for (Route route : methodRoutes) {
-                endpoints.add(method + " " + route.pattern.pattern());
-            }
-        }
-        return endpoints;
-    }
-
 }

@@ -23,7 +23,7 @@ import java.util.Set;
  * It handles requests for static files, including HTML, CSS, JavaScript, and images.
  * It also supports URL prefixing and default file serving (e.g., index.html).
  * It can exclude certain URL prefixes or API routers from static file serving.
- * 
+ *
  */
 public class StaticMiddleware implements Middleware {
     private final Path rootDirectory;
@@ -31,7 +31,7 @@ public class StaticMiddleware implements Middleware {
     private final String defaultFileName;
     private final Set<Router> apiRouters;  // Store reference to API routers
     private final Set<String> excludedPrefixes;  // Store URL prefixes to exclude
-    
+
     public StaticMiddleware(String rootDirectory, String urlPrefix) {
         this(rootDirectory, urlPrefix, "index.html", new HashSet<>());
     }
@@ -60,14 +60,6 @@ public class StaticMiddleware implements Middleware {
         // Check if path matches any excluded prefix
         for (String prefix : excludedPrefixes) {
             if (requestPath.startsWith(prefix)) {
-                next.next(req, res);
-                return;
-            }
-        }
-        
-        // Check if any API router matches this path (legacy support)
-        for (Router router : apiRouters) {
-            if (requestPath.startsWith(router.getPrefix())) {
                 next.next(req, res);
                 return;
             }
@@ -144,11 +136,11 @@ public class StaticMiddleware implements Middleware {
         Collections.addAll(apiRouters, routers);
         return this;
     }
-    
+
     /**
      * Add URL prefixes to be excluded from static file serving.
      * Any request path starting with one of these prefixes will be passed to the next middleware.
-     * 
+     *
      * @param prefixes the URL path prefixes to exclude
      * @return this middleware instance for chaining
      */

@@ -111,14 +111,13 @@ public class MiddlewareIntegrationTest {
         StaticMiddleware staticMiddleware = new StaticMiddleware(tempDir.toString(), "/static");
         
         Router apiRouter = new Router();
-        apiRouter.setPrefix("/api");
         apiRouter.get("/test", (req, res) -> {
             res.writeBody("API Test");
             res.send();
         });
         
         server.use(staticMiddleware);
-        server.use(apiRouter);
+        server.use("/api", apiRouter);
         
         // When - Access static file
         HttpClient client = HttpClient.newHttpClient();
@@ -196,13 +195,12 @@ public class MiddlewareIntegrationTest {
                 .excludePrefixes("/api");
         
         Router apiRouter = new Router();
-        apiRouter.setPrefix("/api");
         apiRouter.get("/test", (req, res) -> {
             res.writeBody("API Route");
             res.send();
         });
         
-        server.use(apiRouter);
+        server.use("/api", apiRouter);
         server.use(staticMiddleware);
         
         // When - Access excluded API route
