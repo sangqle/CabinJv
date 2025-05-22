@@ -4,83 +4,77 @@ import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
 import com.cabin.express.interfaces.Middleware;
 import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.router.Router;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.InputStream;
+import java.net.URLConnection;
+import java.nio.file.*;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
+/**
+ * Author: Sang Le
+ * Date: 2025-05-13
+ * Version: 11.0.5
+ * Description: StaticMiddleware is a middleware for serving static files from a specified directory.
+ * It handles requests for static files, including HTML, CSS, JavaScript, and images.
+ * It also supports URL prefixing and default file serving (e.g., index.html).
+ * It can exclude certain URL prefixes or API routers from static file serving.
+ *
+ */
 public class StaticMiddleware implements Middleware {
     private final Path rootDirectory;
     private final String urlPrefix;
     private final String defaultFileName;
+    private final Set<Router> apiRouters;  // Store reference to API routers
     private final Set<String> excludedPrefixes;  // Store URL prefixes to exclude
 
-    /**
-     * Creates a new StaticMiddleware with defaults.
-     *
-     * @param rootDirectory The directory on the server filesystem to serve files from
-     * @param urlPrefix     The URL path prefix to mount static files (e.g. "/static")
-     */
     public StaticMiddleware(String rootDirectory, String urlPrefix) {
         this(rootDirectory, urlPrefix, "index.html", new HashSet<>());
     }
 
+
     /**
      * Creates a new StaticMiddleware.
      *
-     * @param rootDirectory  The directory on the server filesystem to serve files from
-     * @param urlPrefix      The URL path prefix to mount static files (e.g. "/static")
-     * @param defaultFileName Default file to serve for directory requests (e.g. "index.html")
-     * @param excludedPrefixes Set of URL prefixes to exclude from static file serving
+     * @param rootDirectory The directory on the server filesystem to serve files from
+     * @param urlPrefix     The URL path prefix to mount static files (e.g. "/static")
      */
-    public StaticMiddleware(String rootDirectory, String urlPrefix, String defaultFileName, Set<String> excludedPrefixes) {
-        this.rootDirectory = Paths.get(rootDirectory).normalize();
-        
-        // Normalize URL prefix (ensure it starts with '/' and doesn't end with '/')
-        this.urlPrefix = normalizeUrlPrefix(urlPrefix);
-        
+    public StaticMiddleware(String rootDirectory, String urlPrefix, String defaultFileName, Set<Router> apiRouters) {
+        Objects.requireNonNull(rootDirectory, "Static root directory cannot be null");
+        Objects.requireNonNull(urlPrefix, "URL prefix cannot be null");
+        this.rootDirectory = Paths.get(rootDirectory).toAbsolutePath().normalize();
+        this.urlPrefix = urlPrefix.endsWith("/") ? urlPrefix : urlPrefix + "/";
         this.defaultFileName = defaultFileName;
-        this.excludedPrefixes = excludedPrefixes;
+        this.apiRouters = apiRouters;
+        this.excludedPrefixes = new HashSet<>();
     }
 
     @Override
     public void apply(Request req, Response res, MiddlewareChain next) throws IOException {
         String requestPath = req.getPath();
-        
-        // Skip if request path doesn't start with our URL prefix (unless prefix is '/')
-        if (!urlPrefix.equals("/") && !requestPath.startsWith(urlPrefix)) {
-            next.next(req, res);
-            return;
-        }
-        
-        // Skip if the path matches any excluded prefix
+
+        // Check if path matches any excluded prefix
         for (String prefix : excludedPrefixes) {
             if (requestPath.startsWith(prefix)) {
                 next.next(req, res);
                 return;
             }
         }
-        
-        // Extract relative path from the URL prefix
-        String relPath;
-        if (urlPrefix.equals("/")) {
-            relPath = requestPath.substring(1); // Remove leading '/'
-        } else {
-            relPath = requestPath.substring(urlPrefix.length());
-            if (relPath.startsWith("/")) {
-                relPath = relPath.substring(1);
-            }
+
+        // Continue with static file serving...
+        String relPath = requestPath.startsWith(urlPrefix)
+                ? requestPath.substring(urlPrefix.length())
+                : requestPath;
+
+        if (relPath.isEmpty() || relPath.endsWith("/")) {
+            relPath = relPath + defaultFileName;
         }
-        
-        // Serve directory root
-        if (relPath.isEmpty()) {
-            relPath = defaultFileName;
-        }
-        
-        // Handle the static file
+
+        // Rest of your existing static file serving logic...
         handleStaticFile(relPath, req, res, next);
     }
 
@@ -107,79 +101,53 @@ public class StaticMiddleware implements Middleware {
     }
 
     private void serveFile(Path filePath, Response res) throws IOException {
-        // Set content type based on file extension
-        String contentType = getContentType(filePath.toString());
-        res.setHeader("Content-Type", contentType);
-        
-        // Set content length
-        long fileSize = Files.size(filePath);
-        res.setHeader("Content-Length", String.valueOf(fileSize));
-        
-        // Read and send file content
-        byte[] fileContent = Files.readAllBytes(filePath);
-        res.setStatusCode(200);
-        res.writeBody(fileContent);
-        res.send();
+        try {
+            String contentType = URLConnection.guessContentTypeFromName(filePath.toString());
+            if (contentType != null) {
+                res.setHeader("Content-Type", contentType);
+            } else {
+                res.setHeader("Content-Type", "application/octet-stream");
+            }
+
+            res.setStatusCode(200);
+            res.setHeader("Cache-Control", "public, max-age=3600");
+
+            try (InputStream in = Files.newInputStream(filePath)) {
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = in.read(buffer)) != -1) {
+                    res.write(buffer, 0, read);
+                }
+            }
+
+            res.send();
+        } catch (IOException e) {
+            CabinLogger.error("Error serving static file: " + e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    /**
+     * Add API routers to be excluded from static file serving
+     * @param routers the routers to exclude
+     * @return this middleware instance for chaining
+     */
+    public StaticMiddleware excludeRouters(Router... routers) {
+        Collections.addAll(apiRouters, routers);
+        return this;
     }
 
     /**
      * Add URL prefixes to be excluded from static file serving.
      * Any request path starting with one of these prefixes will be passed to the next middleware.
-     * 
+     *
      * @param prefixes the URL path prefixes to exclude
      * @return this middleware instance for chaining
      */
     public StaticMiddleware excludePrefixes(String... prefixes) {
         for (String prefix : prefixes) {
-            // Ensure prefix starts with '/'
-            String normalizedPrefix = prefix.startsWith("/") ? prefix : "/" + prefix;
-            excludedPrefixes.add(normalizedPrefix);
+            excludedPrefixes.add(prefix);
         }
         return this;
-    }
-    
-    /**
-     * Helper method to get content type based on file extension
-     */
-    private String getContentType(String path) {
-        String extension = "";
-        int lastDot = path.lastIndexOf('.');
-        if (lastDot > 0) {
-            extension = path.substring(lastDot + 1).toLowerCase();
-        }
-        
-        return switch (extension) {
-            case "html", "htm" -> "text/html";
-            case "css" -> "text/css";
-            case "js" -> "application/javascript";
-            case "json" -> "application/json";
-            case "png" -> "image/png";
-            case "jpg", "jpeg" -> "image/jpeg";
-            case "gif" -> "image/gif";
-            case "svg" -> "image/svg+xml";
-            case "ico" -> "image/x-icon";
-            case "txt" -> "text/plain";
-            case "pdf" -> "application/pdf";
-            default -> "application/octet-stream";
-        };
-    }
-    
-    /**
-     * Helper method to normalize URL prefix
-     */
-    private String normalizeUrlPrefix(String prefix) {
-        if (prefix == null || prefix.isEmpty()) {
-            return "/";
-        }
-        
-        // Ensure it starts with '/'
-        prefix = prefix.startsWith("/") ? prefix : "/" + prefix;
-        
-        // Remove trailing '/' if present and not the root
-        if (prefix.length() > 1 && prefix.endsWith("/")) {
-            prefix = prefix.substring(0, prefix.length() - 1);
-        }
-        
-        return prefix;
     }
 }

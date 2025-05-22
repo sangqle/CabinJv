@@ -71,7 +71,7 @@ public class HServer {
                 .excludePrefixes("/api", "/graph/");
 
         // Add static middleware last
-//        server.use(staticMiddleware);
+        server.use(staticMiddleware);
 
         // Start the server in the main thread
         logger.info("Starting server at http://localhost:" + server.getPort());
