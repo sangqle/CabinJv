@@ -514,27 +514,21 @@ public class RouterTest {
 
     @Test
     void shouldHandleRequestsInCorrectOrderWithMultipleMatchingRoutes() throws IOException, InterruptedException {
-        // Setup counter to track which handler processes the request
-        AtomicInteger handlerCounter = new AtomicInteger(0);
-
         // Setup router with potentially conflicting routes
         Router apiRouter = new Router();
 
         // Add specific route
         apiRouter.get("/users/admin", (req, res) -> {
-            handlerCounter.set(1);
             res.send("Admin user");
         });
 
         // Add parameterized route that could match the same path
         apiRouter.get("/users/:id", (req, res) -> {
-            handlerCounter.set(2);
             res.send("User " + req.getPathParam("id"));
         });
 
         // Add wildcard route that could also match
         apiRouter.get("/users/*", (req, res) -> {
-            handlerCounter.set(3);
             res.send("Wildcard match: " + req.getPathParam("wildcard"));
         });
 
@@ -549,14 +543,12 @@ public class RouterTest {
         );
 
         // Test parameterized route - should match the second handler
-        handlerCounter.set(0); // Reset counter
         HttpResponse<String> paramResponse = client.send(
                 HttpRequest.newBuilder().uri(URI.create(baseUrl + "/api/users/123")).GET().build(),
                 HttpResponse.BodyHandlers.ofString()
         );
 
         // Test deeper path - should match the wildcard handler
-        handlerCounter.set(0); // Reset counter
         HttpResponse<String> wildcardResponse = client.send(
                 HttpRequest.newBuilder().uri(URI.create(baseUrl + "/api/users/profile/settings")).GET().build(),
                 HttpResponse.BodyHandlers.ofString()
@@ -565,14 +557,11 @@ public class RouterTest {
         // Verify responses
         assertThat(specificResponse.statusCode()).isEqualTo(200);
         assertThat(specificResponse.body()).isEqualTo("Admin user");
-        assertThat(handlerCounter.get()).isEqualTo(1);
 
         assertThat(paramResponse.statusCode()).isEqualTo(200);
         assertThat(paramResponse.body()).isEqualTo("User 123");
-        assertThat(handlerCounter.get()).isEqualTo(2);
 
         assertThat(wildcardResponse.statusCode()).isEqualTo(200);
         assertThat(wildcardResponse.body()).startsWith("Wildcard match:");
-        assertThat(handlerCounter.get()).isEqualTo(3);
     }
 }
