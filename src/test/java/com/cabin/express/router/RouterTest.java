@@ -250,7 +250,7 @@ public class RouterTest {
         rootHandler.get("/trailing/", (req, res) -> res.send("Trailing"));
 
         // Mount at empty path
-        apiRouter.use("", rootHandler);
+        apiRouter.use(rootHandler);
         server.use("/api", apiRouter);
 
         // Test different path patterns
