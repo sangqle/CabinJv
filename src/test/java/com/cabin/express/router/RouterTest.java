@@ -33,14 +33,6 @@ public class RouterTest {
         serverPort = (int) serverSetup[1]; // Get the actual port
         // serverThread = (Thread) serverSetup[2]; // If needed for explicit join
         baseUrl = "http://localhost:" + serverPort;
-
-        // Optional: Wait for server to be ready if startServerWithDynamicPort doesn't guarantee it
-        boolean isReady = ServerTestUtil.waitForServerReady(baseUrl, "/some-health-check-path", 5000);
-        if (!isReady) {
-            // Clean up immediately if server didn't start
-            if (server != null) ServerTestUtil.stopServer(server, 1000);
-            throw new IllegalStateException("Server failed to start or become ready in time for test.");
-        }
     }
 
     @AfterEach
@@ -140,20 +132,20 @@ public class RouterTest {
 
     @Test
     void shouldHandleNestedRoutersWithPrefixes() throws IOException, InterruptedException {
-        // Setup parent router with prefix
+        // Setup parent router
         Router apiRouter = new Router();
-        apiRouter.setPrefix("/api");
 
-        // Setup child router with additional prefix
+        // Setup child router
         Router usersRouter = new Router();
-        usersRouter.setPrefix("/users");
         usersRouter.get("/:id", (req, res) -> {
             res.send("User " + req.getPathParam("id"));
         });
 
-        // Add child router to parent
-        apiRouter.use(usersRouter);
-        server.use(apiRouter);
+        // Add child router with path prefix
+        apiRouter.use("/users", usersRouter);
+
+
+        server.use("/api", apiRouter);
 
         // Test nested route
         HttpClient client = HttpClient.newHttpClient();

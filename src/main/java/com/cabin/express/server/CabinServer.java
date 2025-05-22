@@ -11,6 +11,7 @@ import com.cabin.express.profiler.ServerProfiler;
 import com.cabin.express.profiler.reporting.DashboardReporter;
 import com.cabin.express.router.Router;
 import com.cabin.express.profiler.metrics.ThreadMetrics;
+import com.cabin.express.utils.PathUtils;
 import com.cabin.express.worker.CabinWorkerPool;
 import com.google.gson.Gson;
 
@@ -45,6 +46,8 @@ public class CabinServer {
     private final List<Middleware> globalMiddlewares = new ArrayList<>();
     private final Map<SocketChannel, Long> connectionLastActive = new ConcurrentHashMap<>();
     private final Map<SocketChannel, ByteArrayOutputStream> clientBuffers = new ConcurrentHashMap<>();
+
+    private final List<Middleware> middlewareStack = new ArrayList<>();
 
     // Resource logging task
     private ScheduledFuture<?> resourceLoggingTask;
@@ -92,12 +95,16 @@ public class CabinServer {
             long connectionTimeoutMillis,
             long idleConnectionTimeoutSeconds
     ) {
-        this.port = port;
-        this.connectionTimeoutMillis = connectionTimeoutMillis;
-        this.idleConnectionTimeoutMillis = idleConnectionTimeoutSeconds;
-
-        this.readWorkerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
-        this.writeWorkerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
+        this(
+                port,
+                defaultPoolSize,
+                maxPoolSize,
+                maxQueueCapacity,
+                connectionTimeoutMillis,
+                idleConnectionTimeoutSeconds,
+                false,
+                false
+        );
     }
 
     protected CabinServer(
@@ -403,8 +410,13 @@ public class CabinServer {
 
 
     /**
-     * Handle a client request, integrating profiler metrics
+     * Handle a client request, integrating profiler metrics and using the new trie-based router structure
+     *
+     * @param clientChannel         the client channel
+     * @param byteArrayOutputStream the request data
+     * @throws IOException if an I/O error occurs
      */
+
     private void handleClientRequest(SocketChannel clientChannel, ByteArrayOutputStream byteArrayOutputStream) {
         // Start request profiling if enabled
         if (profilerEnabled) {
@@ -422,14 +434,9 @@ public class CabinServer {
                 res.send();
             };
 
-            // Create combined middleware list
-            List<Middleware> allMiddleware = new ArrayList<>(globalMiddlewares);
+            // Create middleware chain with all registered middleware (including routers)
+            MiddlewareChain chain = new MiddlewareChain(middlewareStack, finalHandler);
 
-            // Add routers as middleware
-            allMiddleware.addAll(routers);
-
-            // Create and execute the middleware chain
-            MiddlewareChain chain = new MiddlewareChain(allMiddleware, finalHandler);
             chain.next(request, response);
 
             // For example purposes, assuming status code and path are available:
@@ -528,45 +535,43 @@ public class CabinServer {
         if (router == null) {
             throw new IllegalArgumentException("Router cannot be null");
         }
-
-        // Check for duplicate router
-        if (routers.contains(router)) {
-            throw new IllegalArgumentException("Router already added");
-        }
-
-        // Check for conflicting routes
-        for (Router existingRouter : routers) {
-            Set<String> existingEndpoints = existingRouter.getEndpoint();
-            Set<String> newEndpoints = router.getEndpoint();
-
-            for (String newPath : newEndpoints) {
-                if (existingEndpoints.contains(newPath)) {
-                    throw new IllegalArgumentException(
-                            String.format("Conflicting route found: %s", newPath));
-                }
-            }
-        }
-
-        // Apply global middleware to the router
-        for (Middleware middleware : globalMiddlewares) {
-            router.use(middleware);
-        }
-
-        routers.add(router);
+        // Add the router the middleware stack
+        middlewareStack.add(router);
     }
 
     /**
-     * Add a global middleware to all routers
+     * Add a router to the server with a path prefix
+     *
+     * @param path   the path prefix
+     * @param router the router to add
+     * @throws IllegalArgumentException if router is null
+     */
+    public void use(String path, Router router) {
+        if (router == null) {
+            throw new IllegalArgumentException("Router cannot be null");
+        }
+
+        // Create a new router with the specified path
+        Router mountedRouter = new Router();
+        mountedRouter.use(path, router);
+
+        // Add the mounted router to the middleware stack
+        middlewareStack.add(mountedRouter);
+    }
+
+    /**
+     * Add a middleware to the server
      *
      * @param middleware the middleware to add
      */
     public void use(Middleware middleware) {
-        globalMiddlewares.add(middleware);
-        for (Router router : routers) {
-            router.use(middleware);
+        if (middleware == null) {
+            throw new IllegalArgumentException("Middleware cannot be null");
         }
-    }
 
+        // Add the middleware to the stack
+        middlewareStack.add(middleware);
+    }
 
     private void closeIdleConnections() {
         long now = System.currentTimeMillis();

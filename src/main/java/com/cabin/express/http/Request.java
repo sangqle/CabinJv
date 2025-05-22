@@ -50,6 +50,7 @@ public class Request {
     private Map<String, String> formFields = new HashMap<>();
     private Map<String, List<UploadedFile>> uploadedFiles = new HashMap<>();
     private final Map<Class<?>, Object> attributes = new HashMap<>();
+    private String baseUrl;
 
     private static final Gson gson = new Gson();
 
@@ -292,8 +293,8 @@ public class Request {
     /**
      * Parses the request body as an object of the specified class.
      *
-     * @param <T>   The type of the object to parse the body as.
-     * @param clazz The class of the object to parse the body as.
+     * @param <T>     The type of the object to parse the body as.
+     * @param typeOfT The class of the object to parse the body as.
      * @return The parsed object, or null if the body is null or not JSON.
      * @throws IllegalArgumentException if the body cannot be parsed as the specified class.
      */
@@ -452,4 +453,17 @@ public class Request {
     public void setPathParam(String key, String value) {
         pathParams.put(key, value);
     }
+
+    public String getBaseUrl() {
+        return baseUrl;
+    }
+
+    public void setBaseUrl(String baseUrl) {
+        this.baseUrl = baseUrl;
+    }
+
+    public void setPath(String path) {
+        this.path = path;
+    }
+
 }
