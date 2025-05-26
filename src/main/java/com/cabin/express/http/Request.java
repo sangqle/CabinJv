@@ -450,6 +450,11 @@ public class Request {
         return key.cast(attributes.get(key));
     }
 
+    public String getAttribute(String key) {
+        return (String) attributes.get(key);
+    }
+
+
     public void setPathParam(String key, String value) {
         pathParams.put(key, value);
     }
