@@ -24,7 +24,7 @@ See [RELEASE.md](RELEASE.md) for full release history and upgrade notes.
 
 #### Request/Response Handling
 
-- **Request**: Represents an HTTP request with methods to access headers, parameters, body, etc.
+- [**Request**](src/main/java/com/cabin/express/http/Request.java): Represents an HTTP request with methods to access headers, parameters, body, etc.
 - **Response**: Represents an HTTP response with methods for headers, status codes, and writing the response body
 - **Router**: Defines and handles HTTP routes and maps them to appropriate handlers
 
