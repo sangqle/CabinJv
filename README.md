@@ -1,3 +1,4 @@
+[CabinJV]: src/main/java/com/cabin/express
 # CabinJ Framework
 
 ## Introduction
@@ -26,8 +27,8 @@ See [RELEASE.md](RELEASE.md) for full release history and upgrade notes.
 - **Middleware**: Interface for creating middleware components
 - **MiddlewareChain**: Manages the execution flow of middleware and route handlers
 - **Built-in Middleware**:
-    - CORS: Cross-Origin Resource Sharing support
-    - GzipMiddleware: Compresses responses with gzip encoding
+   - CORS: Cross-Origin Resource Sharing support
+   - GzipMiddleware: Compresses responses with gzip encoding
 
 #### Concurrency Management
 - **CabinWorkerPool**: Thread pool implementation for handling concurrent requests
@@ -41,27 +42,27 @@ See [RELEASE.md](RELEASE.md) for full release history and upgrade notes.
 ## Framework Flow
 
 1. **Initialization**:
-    - Create a CabinServer instance using ServerBuilder
-    - Configure routes with Router instances
-    - Apply global middleware
-    - Start the server
+   - Create a [CabinServer](src/main/java/com/cabin/express/server/CabinServer.java) instance using [ServerBuilder](src/main/java/com/cabin/express/server/ServerBuilder.java)
+   - Configure routes with [Router](src/main/java/com/cabin/express/router/Router.java) instances
+   - Apply global middleware
+   - Start the server
 
 2. **Request Processing**:
-    - Server accepts incoming connections via NIO Selector
-    - Requests are read asynchronously into ByteBuffer pools
-    - Complete requests are parsed into Request objects
-    - Requests are dispatched to worker threads for processing
+   - Server accepts incoming connections via NIO Selector
+   - Requests are read asynchronously into ByteBuffer pools
+   - Complete requests are parsed into [Request](src/main/java/com/cabin/express/http/Request.java) objects
+   - Requests are dispatched to worker threads for processing
 
 3. **Route Handling**:
-    - Router matches request path and method to registered routes
-    - Middleware is applied in sequence via MiddlewareChain
-    - Route handler processes the request and populates the response
-    - Response is sent back to the client
+   - Router matches request path and method to registered routes
+   - [Middleware](src/main/java/com/cabin/express/interfaces/Middleware.java) is applied in sequence via [MiddlewareChain](src/main/java/com/cabin/express/middleware/MiddlewareChain.java)
+   - Route handler processes the request and populates the response
+   - [Response](src/main/java/com/cabin/express/http/Response.java) is sent back to the client
 
 4. **Resource Management**:
-    - Idle connections are monitored and cleaned up
-    - ByteBuffer pools are reused for memory efficiency
-    - Worker thread pools scale based on load
+   - Idle connections are monitored and cleaned up
+   - [ByteBuffer](src/main/java/com/cabin/express/server/BufferPool.java) pools are reused for memory efficiency
+   - Worker thread pools scale based on load via [CabinWorkerPool](src/main/java/com/cabin/express/worker/CabinWorkerPool.java)
 
 ## Getting Started for Contributors
 
@@ -125,23 +126,23 @@ com.cabin.express/
 ### How to Contribute
 
 1. **Understanding the codebase**:
-    - Start with the simple examples (HServerSample.java)
-    - Explore the core classes (CabinServer, Router, Request, Response)
-    - Review the middleware system for extension points
+   - Start with the simple examples (HServerSample.java)
+   - Explore the core classes (CabinServer, Router, Request, Response)
+   - Review the middleware system for extension points
 
 2. **Adding a new feature**:
-    - For new middleware: Implement the Middleware interface
-    - For utility functions: Add them to appropriate classes
-    - For new core components: Discuss with maintainers first
+   - For new middleware: Implement the Middleware interface
+   - For utility functions: Add them to appropriate classes
+   - For new core components: Discuss with maintainers first
 
 3. **Testing**:
-    - Write unit tests for your code
-    - Use SimpleMainTests to create integration tests
+   - Write unit tests for your code
+   - Use SimpleMainTests to create integration tests
 
 4. **Submitting changes**:
-    - Create a branch for your feature
-    - Submit a pull request with a clear description
-    - Ensure all tests pass
+   - Create a branch for your feature
+   - Submit a pull request with a clear description
+   - Ensure all tests pass
 
 ## Common Development Tasks
 
@@ -149,17 +150,17 @@ com.cabin.express/
 
 ```java
 public class LoggingMiddleware implements Middleware {
-    @Override
-    public void apply(Request request, Response response, MiddlewareChain next) throws IOException {
-        long startTime = System.currentTimeMillis();
-        
-        // Continue to the next middleware or route handler
-        next.next(request, response);
-        
-        // Log after processing
-        long duration = System.currentTimeMillis() - startTime;
-        System.out.println(request.getMethod() + " " + request.getPath() + " - " + duration + "ms");
-    }
+   @Override
+   public void apply(Request request, Response response, MiddlewareChain next) throws IOException {
+      long startTime = System.currentTimeMillis();
+
+      // Continue to the next middleware or route handler
+      next.next(request, response);
+
+      // Log after processing
+      long duration = System.currentTimeMillis() - startTime;
+      System.out.println(request.getMethod() + " " + request.getPath() + " - " + duration + "ms");
+   }
 }
 ```
 
@@ -171,21 +172,21 @@ Router router = new Router();
 
 // Basic route
 router.get("/hello", (req, res) -> {
-    res.writeBody("Hello World");
+        res.writeBody("Hello World");
     res.send();
 });
 
 // Path parameters
-router.get("/users/:userId", (req, res) -> {
-    String userId = req.getPathParam("userId");
+        router.get("/users/:userId", (req, res) -> {
+String userId = req.getPathParam("userId");
     res.writeBody("User ID: " + userId);
     res.send();
 });
 
 // JSON response
-router.post("/api/data", (req, res) -> {
-    Map<String, Object> data = req.getBody();
-    // Process data
+        router.post("/api/data", (req, res) -> {
+Map<String, Object> data = req.getBody();
+// Process data
     res.send(responseObject); // Automatically serialized to JSON
 });
 ```
@@ -195,19 +196,19 @@ router.post("/api/data", (req, res) -> {
 
 ```java
 CabinServer server = new ServerBuilder()
-    .setPort(8080)               // HTTP port
-    .setDefaultPoolSize(20)      // Default thread pool size
-    .setMaxPoolSize(100)         // Maximum threads
-    .setMaxQueueCapacity(1000)   // Request queue capacity
-    .enableLogMetrics(true)      // Enable performance logging
-    .build();
+        .setPort(8080)               // HTTP port
+        .setDefaultPoolSize(20)      // Default thread pool size
+        .setMaxPoolSize(100)         // Maximum threads
+        .setMaxQueueCapacity(1000)   // Request queue capacity
+        .enableLogMetrics(true)      // Enable performance logging
+        .build();
 
 // Add global middleware
 server.use(new LoggingMiddleware());
-server.use(new GzipMiddleware());
+        server.use(new GzipMiddleware());
 
 // Add routers
-server.use(apiRouter);
+        server.use(apiRouter);
 
 // Start the server
 server.start();
@@ -231,4 +232,5 @@ server.start();
 5. Contribute documentation improvements
 
 By following this guide, you'll be able to understand, use, and contribute to the CabinJ framework efficiently.
+
 
