@@ -1,0 +1,19 @@
+function git-auto-user() {
+  remote=$(git remote get-url origin 2>/dev/null)
+
+  if [[ "$remote" == *github.com* ]]; then
+    git config user.email "sang.lequang94@gmail.com"
+    git config user.name "sangqle"
+  elif [[ "$remote" == *gitlab.com* ]]; then
+    git config user.email "sang.sevn@gmail.com"
+    git config user.name "sangqle"
+  elif [[ "$remote" == *zalogit2.zing.vn* ]]; then
+    git config user.email "sanglq3@vng.com.vn"
+    git config user.name "sanglq3"
+  else
+    echo "Unknown remote: $remote"
+  fi
+
+  git config user.name "sanglq3"
+}
+
