@@ -25,27 +25,26 @@ See [RELEASE.md](RELEASE.md) for full release history and upgrade notes.
 #### Request/Response Handling
 
 - [**Request**](src/main/java/com/cabin/express/http/Request.java): Represents an HTTP request with methods to access headers, parameters, body, etc.
-- **Response**: Represents an HTTP response with methods for headers, status codes, and writing the response body
-- **Router**: Defines and handles HTTP routes and maps them to appropriate handlers
+- [**Response**](src/main/java/com/cabin/express/http/Response.java): Represents an HTTP response with methods for headers, status codes, and writing the response body
+- [**Router**](src/main/java/com/cabin/express/router/Router.java): Defines and handles HTTP routes and maps them to appropriate handlers
 
 #### Middleware System
 
-- **Middleware**: Interface for creating middleware components
-- **MiddlewareChain**: Manages the execution flow of middleware and route handlers
+- [**Middleware**](src/main/java/com/cabin/express/interfaces/Middleware.java): Interface for creating middleware components
+- [**MiddlewareChain**](src/main/java/com/cabin/express/middleware/MiddlewareChain.java): Manages the execution flow of middleware and route handlers
 - **Built-in Middleware**:
-    - CORS: Cross-Origin Resource Sharing support
-    - GzipMiddleware: Compresses responses with gzip encoding
+   - [**CORS**](src/main/java/com/cabin/express/middleware/Cors.java): Cross-Origin Resource Sharing support
+   - [**GzipMiddleware**](src/main/java/com/cabin/express/middleware/GzipMiddleware.java): Compresses responses with gzip encoding
 
 #### Concurrency Management
 
-- **CabinWorkerPool**: Thread pool implementation for handling concurrent requests
-- **NonBlockingOutputStream**: Ensures non-blocking I/O operations for responses
+- [**CabinWorkerPool**](src/main/java/com/cabin/express/worker/CabinWorkerPool.java): Thread pool implementation for handling concurrent requests
 
 #### Configuration & Utilities
 
-- **ConfigLoader**: Loads configuration properties from various sources
-- **Environment**: Provides access to configuration values throughout the application
-- **CabinLogger**: Logging utilities for the framework
+- [**ConfigLoader**](src/main/java/com/cabin/express/config/ConfigLoader.java): Loads configuration properties from various sources
+- [**Environment**](src/main/java/com/cabin/express/config/Environment.java): Provides access to configuration values throughout the application
+- [**CabinLogger**](src/main/java/com/cabin/express/loggger/CabinLogger.java): Logging utilities for the framework
 
 ## Framework Flow
 
@@ -116,7 +115,7 @@ com.cabin.express/
 ├── loggger/            # Logging utilities
 │   └── CabinLogger.java
 ├── middleware/         # Middleware implementations
-│   ├── CORS.java
+│   ├── Cors.java
 │   ├── GzipMiddleware.java
 │   └── MiddlewareChain.java
 ├── router/             # Routing system
@@ -205,14 +204,12 @@ send();
 });
 
 // JSON response
-        router.
 
-post("/api/data",(req, res) ->{
+router.post("/api/data",(req, res) ->{
 Map<String, Object> data = req.getBody();
-// Process data
-    res.
 
-send(responseObject); // Automatically serialized to JSON
+// Process data
+res.send(responseObject); // Automatically serialized to JSON
 });
 ```
 
@@ -236,14 +233,10 @@ use(new LoggingMiddleware());
 use(new GzipMiddleware());
 
 // Add routers
-        server.
-
-use(apiRouter);
+server.use(apiRouter);
 
 // Start the server
-server.
-
-start();
+server.start();
 ```
 
 ## Performance Considerations
