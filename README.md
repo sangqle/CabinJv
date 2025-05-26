@@ -19,7 +19,7 @@ See [RELEASE.md](RELEASE.md) for full release history and upgrade notes.
 #### Server Layer
 
 - [**CabinServer**](src/main/java/com/cabin/express/server/CabinServer.java): The main entry point that manages server lifecycle, socket connections, and request delegation
-- **ServerBuilder**: Builder pattern implementation for configuring and creating CabinServer instances
+- [**ServerBuilder**](src/main/java/com/cabin/express/server/ServerBuilder.java): Builder pattern implementation for configuring and creating CabinServer instances
 - **BufferPool**: Manages reusable ByteBuffer instances for memory efficiency
 
 #### Request/Response Handling
