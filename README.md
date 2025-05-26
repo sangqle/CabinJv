@@ -1,9 +1,12 @@
 [CabinJV]: src/main/java/com/cabin/express
+
 # CabinJ Framework
 
 ## Introduction
 
-CabinJ is a high-performance, lightweight HTTP server framework built with Java NIO for efficient non-blocking I/O operations. It provides a simple yet powerful API for creating web applications with features like routing, middleware support, and efficient request/response handling.
+CabinJ is a high-performance, lightweight HTTP server framework built with Java NIO for efficient non-blocking I/O
+operations. It provides a simple yet powerful API for creating web applications with features like routing, middleware
+support, and efficient request/response handling.
 
 ## 📦 Releases
 
@@ -14,27 +17,32 @@ See [RELEASE.md](RELEASE.md) for full release history and upgrade notes.
 ### Core Components
 
 #### Server Layer
-- **CabinServer**: The main entry point that manages server lifecycle, socket connections, and request delegation
+
+- [**CabinServer**](src/main/java/com/cabin/express/server/CabinServer.java): The main entry point that manages server lifecycle, socket connections, and request delegation
 - **ServerBuilder**: Builder pattern implementation for configuring and creating CabinServer instances
 - **BufferPool**: Manages reusable ByteBuffer instances for memory efficiency
 
 #### Request/Response Handling
+
 - **Request**: Represents an HTTP request with methods to access headers, parameters, body, etc.
 - **Response**: Represents an HTTP response with methods for headers, status codes, and writing the response body
 - **Router**: Defines and handles HTTP routes and maps them to appropriate handlers
 
 #### Middleware System
+
 - **Middleware**: Interface for creating middleware components
 - **MiddlewareChain**: Manages the execution flow of middleware and route handlers
 - **Built-in Middleware**:
-   - CORS: Cross-Origin Resource Sharing support
-   - GzipMiddleware: Compresses responses with gzip encoding
+    - CORS: Cross-Origin Resource Sharing support
+    - GzipMiddleware: Compresses responses with gzip encoding
 
 #### Concurrency Management
+
 - **CabinWorkerPool**: Thread pool implementation for handling concurrent requests
 - **NonBlockingOutputStream**: Ensures non-blocking I/O operations for responses
 
 #### Configuration & Utilities
+
 - **ConfigLoader**: Loads configuration properties from various sources
 - **Environment**: Provides access to configuration values throughout the application
 - **CabinLogger**: Logging utilities for the framework
@@ -42,50 +50,53 @@ See [RELEASE.md](RELEASE.md) for full release history and upgrade notes.
 ## Framework Flow
 
 1. **Initialization**:
-   - Create a [CabinServer](src/main/java/com/cabin/express/server/CabinServer.java) instance using [ServerBuilder](src/main/java/com/cabin/express/server/ServerBuilder.java)
-   - Configure routes with [Router](src/main/java/com/cabin/express/router/Router.java) instances
-   - Apply global middleware
-   - Start the server
+    - Create a [CabinServer](src/main/java/com/cabin/express/server/CabinServer.java) instance
+      using [ServerBuilder](src/main/java/com/cabin/express/server/ServerBuilder.java)
+    - Configure routes with [Router](src/main/java/com/cabin/express/router/Router.java) instances
+    - Apply global middleware
+    - Start the server
 
 2. **Request Processing**:
-   - Server accepts incoming connections via NIO Selector
-   - Requests are read asynchronously into ByteBuffer pools
-   - Complete requests are parsed into [Request](src/main/java/com/cabin/express/http/Request.java) objects
-   - Requests are dispatched to worker threads for processing
+    - Server accepts incoming connections via NIO Selector
+    - Requests are read asynchronously into ByteBuffer pools
+    - Complete requests are parsed into [Request](src/main/java/com/cabin/express/http/Request.java) objects
+    - Requests are dispatched to worker threads for processing
 
 3. **Route Handling**:
-   - Router matches request path and method to registered routes
-   - [Middleware](src/main/java/com/cabin/express/interfaces/Middleware.java) is applied in sequence via [MiddlewareChain](src/main/java/com/cabin/express/middleware/MiddlewareChain.java)
-   - Route handler processes the request and populates the response
-   - [Response](src/main/java/com/cabin/express/http/Response.java) is sent back to the client
+    - Router matches request path and method to registered routes
+    - [Middleware](src/main/java/com/cabin/express/interfaces/Middleware.java) is applied in sequence
+      via [MiddlewareChain](src/main/java/com/cabin/express/middleware/MiddlewareChain.java)
+    - Route handler processes the request and populates the response
+    - [Response](src/main/java/com/cabin/express/http/Response.java) is sent back to the client
 
 4. **Resource Management**:
-   - Idle connections are monitored and cleaned up
-   - [ByteBuffer](src/main/java/com/cabin/express/server/BufferPool.java) pools are reused for memory efficiency
-   - Worker thread pools scale based on load via [CabinWorkerPool](src/main/java/com/cabin/express/worker/CabinWorkerPool.java)
+    - Idle connections are monitored and cleaned up
+    - [ByteBuffer](src/main/java/com/cabin/express/server/BufferPool.java) pools are reused for memory efficiency
+    - Worker thread pools scale based on load
+      via [CabinWorkerPool](src/main/java/com/cabin/express/worker/CabinWorkerPool.java)
 
 ## Getting Started for Contributors
 
 ### Setting Up the Development Environment
 
 1. **Clone the repository**:
+
 ```shell script
 git clone https://github.com/sangqle/CabinJv.git
    cd CabinJv
 ```
 
-
 2. **Build the project**:
+
 ```shell script
 ./gradlew clean build
 ```
 
-
 3. **Run the tests**:
+
 ```shell script
 ./gradlew test
 ```
-
 
 ### Project Structure
 
@@ -122,27 +133,26 @@ com.cabin.express/
     └── CabinWorkerPool.java
 ```
 
-
 ### How to Contribute
 
 1. **Understanding the codebase**:
-   - Start with the simple examples (HServerSample.java)
-   - Explore the core classes (CabinServer, Router, Request, Response)
-   - Review the middleware system for extension points
+    - Start with the simple examples (HServerSample.java)
+    - Explore the core classes (CabinServer, Router, Request, Response)
+    - Review the middleware system for extension points
 
 2. **Adding a new feature**:
-   - For new middleware: Implement the Middleware interface
-   - For utility functions: Add them to appropriate classes
-   - For new core components: Discuss with maintainers first
+    - For new middleware: Implement the Middleware interface
+    - For utility functions: Add them to appropriate classes
+    - For new core components: Discuss with maintainers first
 
 3. **Testing**:
-   - Write unit tests for your code
-   - Use SimpleMainTests to create integration tests
+    - Write unit tests for your code
+    - Use SimpleMainTests to create integration tests
 
 4. **Submitting changes**:
-   - Create a branch for your feature
-   - Submit a pull request with a clear description
-   - Ensure all tests pass
+    - Create a branch for your feature
+    - Submit a pull request with a clear description
+    - Ensure all tests pass
 
 ## Common Development Tasks
 
@@ -150,20 +160,19 @@ com.cabin.express/
 
 ```java
 public class LoggingMiddleware implements Middleware {
-   @Override
-   public void apply(Request request, Response response, MiddlewareChain next) throws IOException {
-      long startTime = System.currentTimeMillis();
+    @Override
+    public void apply(Request request, Response response, MiddlewareChain next) throws IOException {
+        long startTime = System.currentTimeMillis();
 
-      // Continue to the next middleware or route handler
-      next.next(request, response);
+        // Continue to the next middleware or route handler
+        next.next(request, response);
 
-      // Log after processing
-      long duration = System.currentTimeMillis() - startTime;
-      System.out.println(request.getMethod() + " " + request.getPath() + " - " + duration + "ms");
-   }
+        // Log after processing
+        long duration = System.currentTimeMillis() - startTime;
+        System.out.println(request.getMethod() + " " + request.getPath() + " - " + duration + "ms");
+    }
 }
 ```
-
 
 ### Registering Routes
 
@@ -171,26 +180,41 @@ public class LoggingMiddleware implements Middleware {
 Router router = new Router();
 
 // Basic route
-router.get("/hello", (req, res) -> {
-        res.writeBody("Hello World");
-    res.send();
+router.
+
+get("/hello",(req, res) ->{
+        res.
+
+writeBody("Hello World");
+    res.
+
+send();
 });
 
 // Path parameters
-        router.get("/users/:userId", (req, res) -> {
+        router.
+
+get("/users/:userId",(req, res) ->{
 String userId = req.getPathParam("userId");
-    res.writeBody("User ID: " + userId);
-    res.send();
+    res.
+
+writeBody("User ID: "+userId);
+    res.
+
+send();
 });
 
 // JSON response
-        router.post("/api/data", (req, res) -> {
+        router.
+
+post("/api/data",(req, res) ->{
 Map<String, Object> data = req.getBody();
 // Process data
-    res.send(responseObject); // Automatically serialized to JSON
+    res.
+
+send(responseObject); // Automatically serialized to JSON
 });
 ```
-
 
 ### Server Configuration
 
@@ -204,16 +228,23 @@ CabinServer server = new ServerBuilder()
         .build();
 
 // Add global middleware
-server.use(new LoggingMiddleware());
-        server.use(new GzipMiddleware());
+server.
+
+use(new LoggingMiddleware());
+        server.
+
+use(new GzipMiddleware());
 
 // Add routers
-        server.use(apiRouter);
+        server.
+
+use(apiRouter);
 
 // Start the server
-server.start();
-```
+server.
 
+start();
+```
 
 ## Performance Considerations
 
