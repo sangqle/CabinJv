@@ -1,4 +1,4 @@
-package examples.sample;
+package examples;
 
 import com.cabin.express.middleware.GzipMiddleware;
 import com.cabin.express.middleware.StaticMiddleware;
@@ -11,8 +11,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
-public class HServer {
-    private static final Logger logger = LoggerFactory.getLogger(HServer.class);
+public class CabinServerAllInOne {
+    private static final Logger logger = LoggerFactory.getLogger(CabinServerAllInOne.class);
     private static CabinServer server;
 
     public static void main(String[] args) throws IOException {

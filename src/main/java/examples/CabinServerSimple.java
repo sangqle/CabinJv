@@ -6,7 +6,7 @@ import com.cabin.express.server.ServerBuilder;
 
 import java.io.IOException;
 
-public class HServerSample {
+public class CabinServerSimple {
     public static void main(String[] args) throws IOException {
         CabinServer server = new ServerBuilder().setPort(8080).build();
         Router router = new Router();
