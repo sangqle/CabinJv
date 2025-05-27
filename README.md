@@ -230,91 +230,6 @@ com.cabin.express/
     - Submit a pull request with a clear description
     - Ensure all tests pass
 
-## Common Development Tasks
-
-### Creating a Custom Middleware
-
-```java
-public class LoggingMiddleware implements Middleware {
-    @Override
-    public void apply(Request request, Response response, MiddlewareChain next) throws IOException {
-        long startTime = System.currentTimeMillis();
-
-        // Continue to the next middleware or route handler
-        next.next(request, response);
-
-        // Log after processing
-        long duration = System.currentTimeMillis() - startTime;
-        System.out.println(request.getMethod() + " " + request.getPath() + " - " + duration + "ms");
-    }
-}
-```
-
-### Registering Routes
-
-```java
-Router router = new Router();
-
-// Basic route
-router.
-
-get("/hello",(req, res) ->{
-        res.
-
-writeBody("Hello World");
-    res.
-
-send();
-});
-
-// Path parameters
-        router.
-
-get("/users/:userId",(req, res) ->{
-String userId = req.getPathParam("userId");
-    res.
-
-writeBody("User ID: "+userId);
-    res.
-
-send();
-});
-
-// JSON response
-
-router.post("/api/data",(req, res) ->{
-Map<String, Object> data = req.getBody();
-
-// Process data
-res.send(responseObject); // Automatically serialized to JSON
-});
-```
-
-### Server Configuration
-
-```java
-CabinServer server = new ServerBuilder()
-        .setPort(8080)               // HTTP port
-        .setDefaultPoolSize(20)      // Default thread pool size
-        .setMaxPoolSize(100)         // Maximum threads
-        .setMaxQueueCapacity(1000)   // Request queue capacity
-        .enableLogMetrics(true)      // Enable performance logging
-        .build();
-
-// Add global middleware
-server.
-
-use(new LoggingMiddleware());
-        server.
-
-use(new GzipMiddleware());
-
-// Add routers
-server.use(apiRouter);
-
-// Start the server
-server.start();
-```
 
 ## Performance Considerations
 
@@ -332,6 +247,7 @@ server.start();
 4. Consider implementing a small feature or enhancement
 5. Contribute documentation improvements
 
+## People
+The CabinJ framework is maintained by [Sang Qle](https://github.com/sangqle)
+
 By following this guide, you'll be able to understand, use, and contribute to the CabinJ framework efficiently.
-
-
