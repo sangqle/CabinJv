@@ -63,6 +63,7 @@ public class LoggerConfigurer {
         PatternLayoutEncoder encoder = new PatternLayoutEncoder();
         encoder.setContext(context);
         encoder.setPattern(config.getLogPattern());
+        encoder.setCharset(java.nio.charset.StandardCharsets.UTF_8); // Ensure proper encoding
         encoder.start();
 
         consoleAppender.setEncoder(encoder);
@@ -95,6 +96,7 @@ public class LoggerConfigurer {
         PatternLayoutEncoder encoder = new PatternLayoutEncoder();
         encoder.setContext(context);
         encoder.setPattern(config.getLogPattern());
+        encoder.setCharset(java.nio.charset.StandardCharsets.UTF_8); // Ensure proper encoding
         encoder.start();
 
         fileAppender.setEncoder(encoder);

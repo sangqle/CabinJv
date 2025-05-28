@@ -11,6 +11,7 @@ import com.cabin.express.server.ServerBuilder;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 class JwtMiddleware implements Middleware {
     static CabinLogger.LoggerInstance _Logger = CabinLogger.getLogger(JwtMiddleware.class);
@@ -20,8 +21,7 @@ class JwtMiddleware implements Middleware {
         String jwtToken = request.getHeader("Authorization");
         if (jwtToken == null || !jwtToken.startsWith("Bearer ")) {
             _Logger.warn("JWT token is missing or invalid");
-            response.setStatusCode(401);
-            response.writeBody("Unauthorized: Missing or invalid JWT token");
+            response.setStatusCode(401); response.writeBody("Unauthorized: Missing or invalid JWT token");
             response.send();
             return;
         }
@@ -71,9 +71,6 @@ public class CabinServerWithMiddleware {
                 .setPort(8888)
                 .enableProfiler(true)
                 .enableProfilerDashboard(true)
-                .configureLogger(config -> {
-                    config.setLogDirectory("/data/logs/");
-                })
                 .build();
 
 

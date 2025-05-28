@@ -38,7 +38,9 @@ public class LoggerConfig {
         this.rootLogLevel = LogLevel.INFO;
         this.enableConsoleLogging = true;
         this.enableFileLogging = true;
-        this.logPattern = "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n";
+        
+        // Updated pattern that uses MDC values
+        this.logPattern = "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} %X{file}:%X{line} - %msg%n";
     }
 
     /**

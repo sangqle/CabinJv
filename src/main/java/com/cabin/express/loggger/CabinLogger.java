@@ -2,6 +2,7 @@ package com.cabin.express.loggger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 /**
  * Central logging utility for the CabinJV framework.
@@ -65,7 +66,7 @@ public class CabinLogger {
      * Create a new logger with the specified name
      *
      * @param name The logger name
-     * @return A new CabinLoggerInstance
+     * @return A new LoggerInstance
      */
     public static LoggerInstance getLogger(String name) {
         return new LoggerInstance(name);
@@ -75,7 +76,7 @@ public class CabinLogger {
      * Create a new logger for the specified class
      *
      * @param clazz The class
-     * @return A new CabinLoggerInstance
+     * @return A new LoggerInstance
      */
     public static LoggerInstance getLogger(Class<?> clazz) {
         return new LoggerInstance(clazz.getName());
@@ -88,7 +89,9 @@ public class CabinLogger {
      */
     public static void info(String msg) {
         ensureInitialized();
+        addCallerInfo();
         logger.info(msg);
+        MDC.clear();
     }
 
     /**
@@ -98,7 +101,9 @@ public class CabinLogger {
      */
     public static void debug(String msg) {
         ensureInitialized();
+        addCallerInfo();
         logger.debug(msg);
+        MDC.clear();
     }
 
     /**
@@ -108,7 +113,9 @@ public class CabinLogger {
      */
     public static void warn(String msg) {
         ensureInitialized();
+        addCallerInfo();
         logger.warn(msg);
+        MDC.clear();
     }
 
     /**
@@ -119,7 +126,9 @@ public class CabinLogger {
      */
     public static void error(String msg, Throwable e) {
         ensureInitialized();
+        addCallerInfo();
         logger.error(msg, e);
+        MDC.clear();
     }
 
     /**
@@ -129,7 +138,9 @@ public class CabinLogger {
      */
     public static void error(String msg) {
         ensureInitialized();
+        addCallerInfo();
         logger.error(msg);
+        MDC.clear();
     }
 
     /**
@@ -139,7 +150,9 @@ public class CabinLogger {
      */
     public static void trace(String msg) {
         ensureInitialized();
+        addCallerInfo();
         logger.trace(msg);
+        MDC.clear();
     }
 
     /**
@@ -179,6 +192,32 @@ public class CabinLogger {
     }
 
     /**
+     * Add caller information to the MDC
+     */
+    private static void addCallerInfo() {
+        StackTraceElement caller = getCaller();
+        MDC.put("file", caller.getFileName());
+        MDC.put("line", String.valueOf(caller.getLineNumber()));
+        MDC.put("method", caller.getMethodName());
+        MDC.put("class", caller.getClassName());
+    }
+
+    /**
+     * Get the caller information from the stack trace
+     */
+    private static StackTraceElement getCaller() {
+        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+        // Skip getStackTrace, getCaller, addCallerInfo, and the logging method
+        for (int i = 4; i < stackTrace.length; i++) {
+            StackTraceElement element = stackTrace[i];
+            if (!element.getClassName().equals(CabinLogger.class.getName())) {
+                return element;
+            }
+        }
+        return stackTrace[4]; // Default if we can't find it
+    }
+
+    /**
      * Instance-based logger for component-specific logging
      */
     public static class LoggerInstance {
@@ -189,27 +228,39 @@ public class CabinLogger {
         }
 
         public void info(String msg) {
+            addCallerInfoForInstance();
             instanceLogger.info(msg);
+            MDC.clear();
         }
 
         public void debug(String msg) {
+            addCallerInfoForInstance();
             instanceLogger.debug(msg);
+            MDC.clear();
         }
 
         public void warn(String msg) {
+            addCallerInfoForInstance();
             instanceLogger.warn(msg);
+            MDC.clear();
         }
 
         public void error(String msg, Throwable e) {
+            addCallerInfoForInstance();
             instanceLogger.error(msg, e);
+            MDC.clear();
         }
 
         public void error(String msg) {
+            addCallerInfoForInstance();
             instanceLogger.error(msg);
+            MDC.clear();
         }
 
         public void trace(String msg) {
+            addCallerInfoForInstance();
             instanceLogger.trace(msg);
+            MDC.clear();
         }
 
         public boolean isInfoEnabled() {
@@ -222,6 +273,32 @@ public class CabinLogger {
 
         public boolean isTraceEnabled() {
             return instanceLogger.isTraceEnabled();
+        }
+        
+        /**
+         * Add caller information to the MDC for instance loggers
+         */
+        private void addCallerInfoForInstance() {
+            StackTraceElement caller = getCallerForInstance();
+            MDC.put("file", caller.getFileName());
+            MDC.put("line", String.valueOf(caller.getLineNumber()));
+            MDC.put("method", caller.getMethodName());
+            MDC.put("class", caller.getClassName());
+        }
+
+        /**
+         * Get the caller information from the stack trace for instance loggers
+         */
+        private StackTraceElement getCallerForInstance() {
+            StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+            // Skip getStackTrace, getCallerForInstance, addCallerInfoForInstance, and the logging method
+            for (int i = 4; i < stackTrace.length; i++) {
+                StackTraceElement element = stackTrace[i];
+                if (!element.getClassName().equals(CabinLogger.LoggerInstance.class.getName())) {
+                    return element;
+                }
+            }
+            return stackTrace[4]; // Default if we can't find it
         }
     }
 }
