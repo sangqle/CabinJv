@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.List;
 
 class JwtMiddleware implements Middleware {
 
@@ -34,10 +35,21 @@ class AppRouter {
     public Router create() {
         Router router = new Router();
         router.get("/hello", this::hello);
+        router.post("/body", this::readBodyFromUrlEncodedForm);
+
         return router;
     }
 
     private void hello(Request req, Response resp) {
+        resp.send("Hello from Cabin");
+    }
+    private void readBodyFromUrlEncodedForm(Request req, Response resp) {
+        // Example of reading body from URL encoded form
+        List<String> formFields = req.getFormFields();
+        for(String field : formFields) {
+            String formField = req.getFormField(field);
+            System.err.println("Form field: " + field + " = " + formField);
+        }
         resp.send("Hello from Cabin");
     }
 }
