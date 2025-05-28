@@ -40,6 +40,8 @@ import java.lang.reflect.Type;
  * @since 2024-12-24
  */
 public class Request {
+
+    private String remoteIpAddress;
     private String method;
     private String path;
     private String body;
@@ -241,6 +243,10 @@ public class Request {
      */
     public String getFormField(String fieldName) {
         return formFields.get(fieldName);
+    }
+
+    public String getFormField(String fieldName, String defaultValue) {
+        return formFields.getOrDefault(fieldName, defaultValue);
     }
 
     public List<String> getFormFields() {
@@ -466,4 +472,144 @@ public class Request {
         this.path = path;
     }
 
+
+    /**
+     * Returns the client's IP address, taking into account forwarded headers for proxy setups.
+     * This method follows a strategy similar to Express.js and Spring Boot by checking multiple
+     * headers in the following order:
+     * 1. X-Forwarded-For
+     * 2. Proxy-Client-IP
+     * 3. WL-Proxy-Client-IP
+     * 4. HTTP_X_FORWARDED_FOR
+     * 5. HTTP_X_FORWARDED
+     * 6. HTTP_X_CLUSTER_CLIENT_IP
+     * 7. HTTP_CLIENT_IP
+     * 8. HTTP_FORWARDED_FOR
+     * 9. HTTP_FORWARDED
+     * 10. HTTP_VIA
+     * 11. REMOTE_ADDR
+     * <p>
+     * If an IP is found in any of these headers, it returns the first non-internal IP address.
+     * If no valid IP is found in headers, it returns the socket's remote address.
+     *
+     * @return The client's IP address as a string
+     */
+    public String getIpAddress() {
+        if (remoteIpAddress != null) {
+            return remoteIpAddress;
+        }
+
+        // Check headers in a specific order (similar to Express.js and Spring Boot)
+        String[] headerNames = {
+                "X-Forwarded-For",
+                "Proxy-Client-IP",
+                "WL-Proxy-Client-IP",
+                "HTTP_X_FORWARDED_FOR",
+                "HTTP_X_FORWARDED",
+                "HTTP_X_CLUSTER_CLIENT_IP",
+                "HTTP_CLIENT_IP",
+                "HTTP_FORWARDED_FOR",
+                "HTTP_FORWARDED",
+                "HTTP_VIA",
+                "REMOTE_ADDR"
+        };
+
+        for (String headerName : headerNames) {
+            String header = getHeader(headerName);
+            if (header != null && !header.isEmpty() && !"unknown".equalsIgnoreCase(header)) {
+                // X-Forwarded-For may contain multiple IPs; the first one is the client
+                if (headerName.equalsIgnoreCase("X-Forwarded-For")) {
+                    String[] ips = header.split(",");
+                    for (String ip : ips) {
+                        String trimmedIp = ip.trim();
+                        if (isValidIpAddress(trimmedIp) && !isInternalIpAddress(trimmedIp)) {
+                            remoteIpAddress = trimmedIp;
+                            return remoteIpAddress;
+                        }
+                    }
+                } else {
+                    String trimmedIp = header.trim();
+                    if (isValidIpAddress(trimmedIp)) {
+                        remoteIpAddress = trimmedIp;
+                        return remoteIpAddress;
+                    }
+                }
+            }
+        }
+
+        // If no IP found in headers, use the remote address (to be set by the server implementation)
+        // You should set this value when accepting the socket connection
+        if (remoteIpAddress == null) {
+            remoteIpAddress = "0.0.0.0"; // Default fallback
+        }
+
+        return remoteIpAddress;
+    }
+
+    /**
+     * Sets the remote IP address from the socket connection.
+     * This should be called by the server when accepting the connection.
+     *
+     * @param ipAddress The remote IP address from the socket
+     */
+    public void setRemoteIpAddress(String ipAddress) {
+        if (this.remoteIpAddress == null) {
+            this.remoteIpAddress = ipAddress;
+        }
+    }
+
+    /**
+     * Checks if an IP address is valid (either IPv4 or IPv6)
+     *
+     * @param ip The IP address to validate
+     * @return true if the IP is valid, false otherwise
+     */
+    private boolean isValidIpAddress(String ip) {
+        if (ip == null || ip.isEmpty()) {
+            return false;
+        }
+
+        // Simple regex for IPv4
+        if (ip.matches("^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")) {
+            return true;
+        }
+
+        // Simple check for IPv6 - this is a basic check and may need to be enhanced
+        if (ip.contains(":") && ip.matches("^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::$|^::1$|^([0-9a-fA-F]{1,4}::?){1,7}([0-9a-fA-F]{1,4})?$")) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Checks if an IP address is an internal/private network address
+     *
+     * @param ip The IP address to check
+     * @return true if the IP is internal, false otherwise
+     */
+    private boolean isInternalIpAddress(String ip) {
+        if (ip == null || ip.isEmpty()) {
+            return true;
+        }
+
+        // Check for loopback addresses
+        if (ip.equals("127.0.0.1") || ip.equals("::1")) {
+            return true;
+        }
+
+        // Check for private IPv4 address ranges
+        if (ip.startsWith("10.") ||
+                ip.startsWith("192.168.") ||
+                ip.matches("^172\\.(1[6-9]|2[0-9]|3[0-1])\\..+")) {
+            return true;
+        }
+
+        // Check for private IPv6 addresses
+        if (ip.startsWith("fc") || ip.startsWith("fd")) {
+            return true;
+        }
+
+        return false;
+    }
 }
