@@ -3,21 +3,28 @@ package examples;
 import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
 import com.cabin.express.interfaces.Middleware;
+import com.cabin.express.loggger.CabinLogger;
 import com.cabin.express.middleware.MiddlewareChain;
 import com.cabin.express.router.Router;
 import com.cabin.express.server.CabinServer;
 import com.cabin.express.server.ServerBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
 
 class JwtMiddleware implements Middleware {
+    static CabinLogger.LoggerInstance _Logger = CabinLogger.getLogger(JwtMiddleware.class);
 
     @Override
     public void apply(Request request, Response response, MiddlewareChain next) throws IOException {
-        System.err.println("Authentication here and call next()");
+        String jwtToken = request.getHeader("Authorization");
+        if (jwtToken == null || !jwtToken.startsWith("Bearer ")) {
+            _Logger.warn("JWT token is missing or invalid");
+            response.setStatusCode(401);
+            response.writeBody("Unauthorized: Missing or invalid JWT token");
+            response.send();
+            return;
+        }
         next.next(request, response);
     }
 }
@@ -55,7 +62,8 @@ class AppRouter {
 }
 
 public class CabinServerWithMiddleware {
-    private static final Logger logger = LoggerFactory.getLogger(CabinServerWithMiddleware.class);
+    static CabinLogger.LoggerInstance _Logger = CabinLogger.getLogger(Router.class);
+
 
     public static void main(String[] args) throws IOException {
         CabinServer server;
@@ -63,6 +71,9 @@ public class CabinServerWithMiddleware {
                 .setPort(8888)
                 .enableProfiler(true)
                 .enableProfilerDashboard(true)
+                .configureLogger(config -> {
+                    config.setLogDirectory("/data/logs/");
+                })
                 .build();
 
 
@@ -72,6 +83,7 @@ public class CabinServerWithMiddleware {
 
         server.use("/api", appRouter);
 
+        _Logger.info("Starting Cabin server on port 8888");
         server.start();
     }
 }

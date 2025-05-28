@@ -1,5 +1,8 @@
 package com.cabin.express.server;
 
+import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.loggger.LoggerConfig;
+import com.cabin.express.middleware.LoggingMiddleware;
 import com.cabin.express.profiler.ServerProfiler;
 
 import java.time.Duration;
@@ -32,6 +35,34 @@ public class ServerBuilder {
     private boolean enableProfiler = false;
     private Duration profilerSamplingInterval = Duration.ofSeconds(10);
     private boolean enableProfilerDashboard = false;
+
+    private LoggerConfig loggerConfig;
+    private boolean enableRequestLogging = false;
+    
+    public ServerBuilder() {
+        // Existing initialization
+        this.loggerConfig = new LoggerConfig();
+    }
+    
+    public ServerBuilder setLogDirectory(String directory) {
+        this.loggerConfig.setLogDirectory(directory);
+        return this;
+    }
+    
+    public ServerBuilder setLogLevel(LoggerConfig.LogLevel level) {
+        this.loggerConfig.setRootLogLevel(level);
+        return this;
+    }
+    
+    public ServerBuilder enableRequestLogging(boolean enabled) {
+        this.enableRequestLogging = enabled;
+        return this;
+    }
+    
+    public ServerBuilder configureLogger(java.util.function.Consumer<LoggerConfig> configurer) {
+        configurer.accept(this.loggerConfig);
+        return this;
+    }
 
 
     /**
@@ -112,6 +143,10 @@ public class ServerBuilder {
      * @return the CabinServer instance
      */
     public CabinServer build() {
+        // Initialize logger with config
+        CabinLogger.initialize(loggerConfig);
+        
+        // Existing build logic
         CabinServer cabinServer = new CabinServer(
                 port,
                 defaultPoolSize,
@@ -122,6 +157,11 @@ public class ServerBuilder {
                 enableProfiler,
                 enableProfilerDashboard
         );
+        
+        // Add logging middleware if enabled
+        if (enableRequestLogging) {
+            cabinServer.use(new LoggingMiddleware());
+        }
 
         // Config profiler settings
         ServerProfiler.INSTANCE.setEnabled(enableProfiler);
@@ -129,7 +169,7 @@ public class ServerBuilder {
         if (profilerSamplingInterval != null) {
             ServerProfiler.INSTANCE.withSamplingInterval(profilerSamplingInterval);
         }
-
+        
         return cabinServer;
     }
 
