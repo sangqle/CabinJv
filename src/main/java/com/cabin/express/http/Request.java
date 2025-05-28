@@ -245,6 +245,10 @@ public class Request {
         return formFields.get(fieldName);
     }
 
+    public String getFormField(String fieldName, String defaultValue) {
+        return formFields.getOrDefault(fieldName, defaultValue);
+    }
+
     public List<String> getFormFields() {
         return new ArrayList<>(formFields.keySet());
     }
