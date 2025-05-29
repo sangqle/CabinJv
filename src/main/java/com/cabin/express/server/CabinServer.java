@@ -5,6 +5,7 @@ import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
 import com.cabin.express.interfaces.Handler;
 import com.cabin.express.interfaces.Middleware;
+import com.cabin.express.interfaces.ServerLifecycleCallback;
 import com.cabin.express.loggger.CabinLogger;
 import com.cabin.express.middleware.MiddlewareChain;
 import com.cabin.express.profiler.ServerProfiler;
@@ -160,44 +161,107 @@ public class CabinServer {
     /**
      * Start the server and initialize all components
      */
-    public void start() throws IOException {
-        // Reset stop flag
-        isStopped = false;
-        isRunning = true;
-
+    public boolean start() throws IOException {
         try {
-            // Initialize the server components, may throw IOException
+            // Reset stop flag
+            isStopped = false;
+            isRunning = true;
+
             initializeServer();
             CabinLogger.info("Server started on port " + port);
 
             // Initialize profiler if enabled
             if (profilerEnabled) {
+                // Make sure the profiler is enabled
                 ServerProfiler.INSTANCE.setEnabled(true);
+
+                // Set up profiler dashboard if enabled
                 if (profilerDashboardEnabled) {
                     setupDashboard();
                 }
             }
 
-            // Run the event loop in the current thread(blocking call)
-            runEventLoop();
+            // Start the event loop in a separate thread
+            Thread eventLoopThread = new Thread(() -> {
+                try {
+                    runEventLoop();
+                } catch (IOException e) {
+                    CabinLogger.error("Event loop failed", e);
+                    isRunning = false;
+                }
+            });
+            eventLoopThread.start();
+
+            // Wait briefly to ensure startup completes
+            Thread.sleep(100);
+
+            return isRunning;
         } catch (Exception e) {
+            CabinLogger.error("Failed to start server", e);
             isRunning = false;
-            isStopped = true;
-            CabinLogger.error("Error starting server: " + e.getMessage(), e);
-
-            // Ensure resources are cleaned up on error
-            try {
-                shutdown();
-            } catch (Exception shutdownEx) {
-                CabinLogger.error("Error during server shutdown: " + shutdownEx.getMessage(), shutdownEx);
-            }
-
-            if (e instanceof IOException) {
-                throw (IOException) e; // Re-throw IOException to indicate failure
-            } else {
-                CabinLogger.error("Unexpected error during server startup: " + e.getMessage(), e);
-            }
+            return false;
         }
+    }
+
+
+    /**
+     * Starts the server in a non-blocking manner with a callback for monitoring
+     * This method initializes the server and starts the event loop in a separate thread.
+     * @param callback Callback to receive server lifecycle events
+     */
+    public void start(ServerLifecycleCallback callback) {
+        Thread serverThread = new Thread(() -> {
+            try {
+                // Reset flags
+                isStopped = false;
+                isRunning = true;
+
+                // Initialize the server components
+                initializeServer();
+
+                // Notify of successful initialization
+                if(callback != null) {
+                    callback.onServerInitialized(port);
+                }
+
+                CabinLogger.info("Server started on port " + port);
+
+                // Initialize profiler if enabled
+                if (profilerEnabled) {
+                    ServerProfiler.INSTANCE.setEnabled(true);
+                    if (profilerDashboardEnabled) {
+                        setupDashboard();
+                    }
+                }
+
+                // Run the event loop
+                runEventLoop();
+
+                // If the event loop exits, notify the callback
+                if (callback != null) {
+                    callback.onServerStopped();
+                }
+            } catch (Exception e) {
+                isRunning = false;
+                isStopped = true;
+                CabinLogger.error("Error starting server: " + e.getMessage(), e);
+
+                if(callback != null) {
+                    callback.onServerFailed(e);
+                }
+
+                // Ensure resources are cleaned up on error
+                try {
+                    shutdown();
+                } catch (Exception shutdownEx) {
+                    CabinLogger.error("Error during server shutdown: " + shutdownEx.getMessage(), shutdownEx);
+                }
+
+            }
+        }, "CabinServer-Thread");
+
+        serverThread.setDaemon(true); // Allow JVM to exit even if server thread is running
+        serverThread.start(); // Start the server thread
     }
 
     /**

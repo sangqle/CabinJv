@@ -3,6 +3,7 @@ package examples;
 import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
 import com.cabin.express.interfaces.Middleware;
+import com.cabin.express.interfaces.ServerLifecycleCallback;
 import com.cabin.express.middleware.MiddlewareChain;
 import com.cabin.express.router.Router;
 import com.cabin.express.server.CabinServer;
@@ -12,6 +13,23 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
+
+class ServerCallBack implements ServerLifecycleCallback {
+    @Override
+    public void onServerInitialized(int port) {
+        System.err.println("Server started on port: " + port);
+    }
+
+    @Override
+    public void onServerStopped() {
+        System.err.println("Server stopped");
+    }
+
+    @Override
+    public void onServerFailed(Exception e) {
+        System.err.println("Server failed to start: " + e.getMessage());
+    }
+}
 
 class JwtMiddleware implements Middleware {
 
@@ -72,6 +90,6 @@ public class CabinServerWithMiddleware {
 
         server.use("/api", appRouter);
 
-        server.start();
+        server.start(new ServerCallBack());
     }
 }
