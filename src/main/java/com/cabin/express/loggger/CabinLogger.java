@@ -122,7 +122,7 @@ public class CabinLogger {
      * Log an error message with exception
      *
      * @param msg The message to log
-     * @param e The exception
+     * @param e   The exception
      */
     public static void error(String msg, Throwable e) {
         ensureInitialized();
@@ -196,7 +196,12 @@ public class CabinLogger {
      */
     private static void addCallerInfo() {
         StackTraceElement caller = getCaller();
-        MDC.put("file", caller.getFileName());
+        // Get the file name and remove the ".java" extension
+        String fileName = caller.getFileName();
+        if (fileName != null && fileName.endsWith(".java")) {
+            fileName = fileName.substring(0, fileName.length() - 5);
+        }
+        MDC.put("file", fileName);
         MDC.put("line", String.valueOf(caller.getLineNumber()));
         MDC.put("method", caller.getMethodName());
         MDC.put("class", caller.getClassName());
@@ -274,13 +279,19 @@ public class CabinLogger {
         public boolean isTraceEnabled() {
             return instanceLogger.isTraceEnabled();
         }
-        
+
         /**
          * Add caller information to the MDC for instance loggers
          */
         private void addCallerInfoForInstance() {
             StackTraceElement caller = getCallerForInstance();
-            MDC.put("file", caller.getFileName());
+            // Get the file name and remove the .java extension
+            String fileName = caller.getFileName();
+            if (fileName != null && fileName.endsWith(".java")) {
+                fileName = fileName.substring(0, fileName.length() - 5); // Remove ".java"
+            }
+
+            MDC.put("file", fileName);
             MDC.put("line", String.valueOf(caller.getLineNumber()));
             MDC.put("method", caller.getMethodName());
             MDC.put("class", caller.getClassName());
