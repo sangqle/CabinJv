@@ -165,21 +165,47 @@ public class CabinServer {
         isStopped = false;
         isRunning = true;
 
-        initializeServer();
-        CabinLogger.info("Server started on port " + port);
+        try {
+            // Initialize the server components, may throw IOException
+            initializeServer();
+            CabinLogger.info("Server started on port " + port);
 
-        // Initialize profiler if enabled
-        if (profilerEnabled) {
-            // Make sure the profiler is enabled
-            ServerProfiler.INSTANCE.setEnabled(true);
+            // Initialize profiler if enabled
+            if (profilerEnabled) {
+                ServerProfiler.INSTANCE.setEnabled(true);
+                if (profilerDashboardEnabled) {
+                    setupDashboard();
+                }
+            }
 
-            // Set up profiler dashboard if enabled
-            if (profilerDashboardEnabled) {
-                setupDashboard();
+            // Run the event loop in the current thread(blocking call)
+            runEventLoop();
+        } catch (Exception e) {
+            isRunning = false;
+            isStopped = true;
+            CabinLogger.error("Error starting server: " + e.getMessage(), e);
+
+            // Ensure resources are cleaned up on error
+            try {
+                shutdown();
+            } catch (Exception shutdownEx) {
+                CabinLogger.error("Error during server shutdown: " + shutdownEx.getMessage(), shutdownEx);
+            }
+
+            if (e instanceof IOException) {
+                throw (IOException) e; // Re-throw IOException to indicate failure
+            } else {
+                CabinLogger.error("Unexpected error during server startup: " + e.getMessage(), e);
             }
         }
+    }
 
-        // Event loop
+    /**
+     * Start the server with default settings
+     *
+     * @throws IOException if an I/O error occurs
+     */
+    private void runEventLoop() throws IOException {
         while (isRunning) {
             // Wake up the channels that are ready for I/O operations
             int readyChannels = selector.select(connectionTimeoutMillis);
@@ -216,11 +242,7 @@ public class CabinServer {
                     key.cancel(); // Cancel the key after handling the event
                 }
             }
-
         }
-
-        // Perform shutdown tasks after exiting the loop
-        shutdown();
     }
 
     private void handleReadSafely(SelectionKey key) {
