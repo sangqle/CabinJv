@@ -40,7 +40,7 @@ public class DashboardReporter implements MetricsReporter {
         });
 
         // Dashboard HTML page
-        adminRouter.get("/dashboard", (req, res) -> {
+        adminRouter.get("/metrics/dashboard", (req, res) -> {
             res.setHeader("Content-Type", "text/html");
             res.send(loadDashboardHtml());
         });
@@ -143,7 +143,7 @@ public class DashboardReporter implements MetricsReporter {
                 "    </div>\n" +
                 "    <script>\n" +
                 "        function fetchMetrics() {\n" +
-                "            fetch('/admin/metrics')\n" +
+                "            fetch('/metrics')\n" +
                 "                .then(response => response.json())\n" +
                 "                .then(data => updateDashboard(data))\n" +
                 "                .catch(error => console.error('Error fetching metrics:', error));\n" +
