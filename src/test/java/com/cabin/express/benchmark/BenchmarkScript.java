@@ -19,8 +19,8 @@ public class BenchmarkScript {
 
     private static final String SERVER_URL = "http://localhost:8080"; // Change to your server URL
     private static final int WARMUP_REQUESTS = 100;
-    private static final int BENCHMARK_DURATION_SECONDS = 10;
-    private static final int[] THREAD_COUNTS = {10};
+    private static final int BENCHMARK_DURATION_SECONDS = 30;
+    private static final int[] THREAD_COUNTS = {100, 200, 500, 1000}; // Different thread counts to test
 
     // Statistics tracking
     private static class BenchmarkStats {

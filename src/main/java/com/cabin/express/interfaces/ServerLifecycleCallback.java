@@ -1,6 +1,5 @@
 package com.cabin.express.interfaces;
 
-import com.cabin.express.server.CabinServer;
 
 /**
  * Callback interface for server lifecycle events
