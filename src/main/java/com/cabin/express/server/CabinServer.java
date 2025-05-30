@@ -94,26 +94,6 @@ public class CabinServer {
             int maxPoolSize,
             int maxQueueCapacity,
             long connectionTimeoutMillis,
-            long idleConnectionTimeoutSeconds
-    ) {
-        this(
-                port,
-                defaultPoolSize,
-                maxPoolSize,
-                maxQueueCapacity,
-                connectionTimeoutMillis,
-                idleConnectionTimeoutSeconds,
-                false,
-                false
-        );
-    }
-
-    protected CabinServer(
-            int port,
-            int defaultPoolSize,
-            int maxPoolSize,
-            int maxQueueCapacity,
-            long connectionTimeoutMillis,
             long idleConnectionTimeoutSeconds,
             boolean profilerEnabled,
             boolean profilerDashboardEnabled
