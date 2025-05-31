@@ -1,8 +1,5 @@
 package com.cabin.express.util;
 
-import com.cabin.express.loggger.CabinLogger;
-import com.cabin.express.server.CabinServer;
-
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.URI;
@@ -10,6 +7,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+
+import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.server.CabinServer;
 
 /**
  * Utility for managing server lifecycle in tests
@@ -147,20 +147,11 @@ public class ServerTestUtil {
         
         // Wait for the stop thread to complete with a timeout
         try {
-            stopThread.join(timeoutMs + 1000); // Add a buffer to the timeout
-            
-            // If thread is still alive after timeout, it might be stuck
-            if (stopThread.isAlive()) {
-                CabinLogger.warn("Server stop operation timed out after " + timeoutMs + "ms");
-                return false;
-            }
-            
-            // Give a little extra time for resources to be released
-            Thread.sleep(100);
+            stopThread.join(timeoutMs + 1000);
             return true;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            CabinLogger.error("Interrupted while stopping server", e);
+            CabinLogger.error("Interrupted while waiting for server to stop", e);
             return false;
         }
     }

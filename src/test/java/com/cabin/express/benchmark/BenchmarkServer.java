@@ -1,5 +1,17 @@
 package com.cabin.express.benchmark;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.Random;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+
 import com.cabin.express.interfaces.ServerLifecycleCallback;
 import com.cabin.express.middleware.GzipMiddleware;
 import com.cabin.express.middleware.StaticMiddleware;
@@ -9,15 +21,6 @@ import com.cabin.express.server.ServerBuilder;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Dedicated benchmark server with optimized endpoints for performance testing
@@ -32,12 +35,11 @@ public class BenchmarkServer {
     private static final AtomicLong requestCounter = new AtomicLong(0);
     private static final AtomicLong startTime = new AtomicLong(System.currentTimeMillis());
 
-    public static void main(String[] args) throws IOException {
-        int port = args.length > 0 ? Integer.parseInt(args[0]) : DEFAULT_PORT;
-
+    public static void startBenchmarkServer() throws IOException {
+        System.out.println("Starting CabinServer Benchmark...");
         // Create optimized server for benchmarking
         CabinServer server = new ServerBuilder()
-                .setPort(port)
+                .setPort(DEFAULT_PORT)
                 .setDefaultPoolSize(50)  // Higher thread pool for benchmark
                 .setMaxPoolSize(200)     // Allow scaling under load
                 .build();

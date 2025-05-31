@@ -1,13 +1,18 @@
 package com.cabin.express.benchmark;
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -20,7 +25,8 @@ public class BenchmarkScript {
     private static final String SERVER_URL = "http://localhost:8080"; // Change to your server URL
     private static final int WARMUP_REQUESTS = 100;
     private static final int BENCHMARK_DURATION_SECONDS = 30;
-    private static final int[] THREAD_COUNTS = {100, 200, 500, 1000}; // Different thread counts to test
+    private static final int[] THREAD_COUNTS = {200}; // Different thread counts to test
+    private static final List<BenchmarkResult> allResults = new ArrayList<>();
 
     // Statistics tracking
     private static class BenchmarkStats {
@@ -83,7 +89,8 @@ public class BenchmarkScript {
         runGetRequestBenchmark();
         runMixedWorkloadBenchmark();
 
-        System.out.println("\n=== Benchmark Complete ===");
+        // Add this line
+        printSummaryTable();
     }
 
     private static boolean isServerReachable() {
@@ -265,7 +272,7 @@ public class BenchmarkScript {
             long requestStart = System.currentTimeMillis();
             try {
                 String payload = payloads[random.nextInt(payloads.length)];
-                
+
                 // FIX: Use correct endpoint with key parameter
                 String key = "key_" + random.nextInt(1000);
                 HttpRequest request = HttpRequest.newBuilder()
@@ -301,19 +308,21 @@ public class BenchmarkScript {
         }
     }
 
+    private static final HttpClient sharedClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .executor(Executors.newFixedThreadPool(50))  // Control max connections
+            .build();
+
     private static void performSingleGetRequest(BenchmarkStats stats) {
         long requestStart = System.currentTimeMillis();
         try {
-            HttpClient client = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(5))
-                    .build();
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(SERVER_URL + "/"))
                     .GET()
                     .build();
 
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = sharedClient.send(request, HttpResponse.BodyHandlers.ofString());
             long requestEnd = System.currentTimeMillis();
 
             boolean success = response.statusCode() >= 200 && response.statusCode() < 400;
@@ -328,22 +337,18 @@ public class BenchmarkScript {
     private static void performSinglePostRequest(BenchmarkStats stats) {
         long requestStart = System.currentTimeMillis();
         try {
-            HttpClient client = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(5))
-                    .build();
-
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(SERVER_URL + "/api/data"))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString("{\"test\": \"data\"}"))
                     .build();
 
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = sharedClient.send(request, HttpResponse.BodyHandlers.ofString());
             long requestEnd = System.currentTimeMillis();
 
             boolean success = response.statusCode() >= 200 && response.statusCode() < 400;
             stats.recordRequest(requestEnd - requestStart, success);
-            if(!success) {
+            if (!success) {
                 System.err.println("POST request failed with status: " + response.toString());
             }
 
@@ -353,18 +358,104 @@ public class BenchmarkScript {
         }
     }
 
+    // Add this class to store benchmark results
+    private static class BenchmarkResult {
+        final String testType;
+        final int threadCount;
+        final long totalRequests;
+        final long successfulRequests;
+        final long failedRequests;
+        final double requestsPerSecond;
+        final double avgResponseTime;
+        final long minResponseTime;
+        final long maxResponseTime;
+        final long percentile95;
+        final long percentile99;
+        final double successRate;
+
+        BenchmarkResult(String testType, int threadCount, BenchmarkStats stats) {
+            this.testType = testType;
+            this.threadCount = threadCount;
+            this.totalRequests = stats.totalRequests.get();
+            this.successfulRequests = stats.successfulRequests.get();
+            this.failedRequests = stats.errors.get();
+            this.requestsPerSecond = stats.getRequestsPerSecond(BENCHMARK_DURATION_SECONDS);
+            this.avgResponseTime = stats.getAverageResponseTime();
+            this.minResponseTime = stats.minResponseTime.get();
+            this.maxResponseTime = stats.maxResponseTime.get();
+            this.percentile95 = stats.getPercentile(95);
+            this.percentile99 = stats.getPercentile(99);
+            this.successRate = 100.0 * stats.successfulRequests.get() / stats.totalRequests.get();
+        }
+    }
+
+    private static void printResultTable(BenchmarkResult result) {
+        // Define table format
+        String headerFormat = "| %-25s | %-15s |\n";
+        String rowFormat = "| %-25s | %-15s |\n";
+        String divider = "+---------------------------+-----------------+\n";
+
+        StringBuilder table = new StringBuilder();
+        table.append(divider);
+        table.append(String.format(headerFormat, "Metric", "Value"));
+        table.append(divider);
+
+        // Add rows
+        table.append(String.format(rowFormat, "Total Requests", result.totalRequests));
+        table.append(String.format(rowFormat, "Successful Requests", result.successfulRequests));
+        table.append(String.format(rowFormat, "Failed Requests", result.failedRequests));
+        table.append(String.format(rowFormat, "Requests/Second", String.format("%.2f", result.requestsPerSecond)));
+        table.append(String.format(rowFormat, "Avg Response Time (ms)", String.format("%.2f", result.avgResponseTime)));
+        table.append(String.format(rowFormat, "Min Response Time (ms)", result.minResponseTime));
+        table.append(String.format(rowFormat, "Max Response Time (ms)", result.maxResponseTime));
+        table.append(String.format(rowFormat, "95th Percentile (ms)", result.percentile95));
+        table.append(String.format(rowFormat, "99th Percentile (ms)", result.percentile99));
+        table.append(String.format(rowFormat, "Success Rate", String.format("%.2f%%", result.successRate)));
+        table.append(divider);
+
+        System.out.print(table.toString());
+    }
+
+
+    // Update the printResults method to ensure results are stored
     private static void printResults(String testType, int threadCount, BenchmarkStats stats) {
+        // Create and store the result
+        BenchmarkResult result = new BenchmarkResult(testType, threadCount, stats);
+        allResults.add(result);  // Make sure this line executes
+
+        // Print individual result as table
         System.out.printf("\n--- %s Results (%d threads) ---\n", testType, threadCount);
-        System.out.printf("Total Requests: %d\n", stats.totalRequests.get());
-        System.out.printf("Successful Requests: %d\n", stats.successfulRequests.get());
-        System.out.printf("Failed Requests: %d\n", stats.errors.get());
-        System.out.printf("Requests/Second: %.2f\n", stats.getRequestsPerSecond(BENCHMARK_DURATION_SECONDS));
-        System.out.printf("Average Response Time: %.2f ms\n", stats.getAverageResponseTime());
-        System.out.printf("Min Response Time: %d ms\n", stats.minResponseTime.get());
-        System.out.printf("Max Response Time: %d ms\n", stats.maxResponseTime.get());
-        System.out.printf("95th Percentile: %d ms\n", stats.getPercentile(95));
-        System.out.printf("99th Percentile: %d ms\n", stats.getPercentile(99));
-        System.out.printf("Success Rate: %.2f%%\n",
-                100.0 * stats.successfulRequests.get() / stats.totalRequests.get());
+        printResultTable(result);
+    }
+
+    // Add this method at the end of main() to print summary table
+    private static void printSummaryTable() {
+        System.out.println("\n=== BENCHMARK SUMMARY ===");
+
+        // Define table format
+        String headerFormat = "| %-10s | %-7s | %-8s | %-9s | %-8s | %-8s | %-8s | %-8s |\n";
+        String rowFormat = "| %-10s | %-7d | %-8d | %-9.2f | %-8.2f | %-8d | %-8d | %-8.2f |\n";
+        String divider = "+------------+---------+----------+-----------+----------+----------+----------+----------+\n";
+
+        StringBuilder table = new StringBuilder();
+        table.append(divider);
+        table.append(String.format(headerFormat, "Test Type", "Threads", "Requests", "Req/Sec", "Avg (ms)", "95th (ms)", "99th (ms)", "Success%"));
+        table.append(divider);
+
+        // Add rows for each result
+        for (BenchmarkResult result : allResults) {
+            table.append(String.format(rowFormat,
+                    result.testType,
+                    result.threadCount,
+                    result.totalRequests,
+                    result.requestsPerSecond,
+                    result.avgResponseTime,
+                    result.percentile95,
+                    result.percentile99,
+                    result.successRate));
+        }
+        table.append(divider);
+
+        System.out.print(table.toString());
     }
 }

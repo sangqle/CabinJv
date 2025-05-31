@@ -1,0 +1,16 @@
+package com.cabin.express.benchmark;
+
+import java.io.IOException;
+
+import org.junit.jupiter.api.Test;
+
+/**
+ * Simple runner for the BenchmarkServer
+ * Use this to start the benchmark server for manual testing
+ */
+public class RunBenchmarkServer {
+    @Test
+    public void startBenchmarkServer() throws IOException {
+        BenchmarkServer.startBenchmarkServer();
+    }
+}
