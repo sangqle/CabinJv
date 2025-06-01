@@ -53,7 +53,6 @@ public class CabinServer {
     // Resource logging task
     private ScheduledFuture<?> resourceLoggingTask;
     private ScheduledFuture<?> idleConnectionTask;
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     // Server configuration
     private final int port;
@@ -70,7 +69,6 @@ public class CabinServer {
 
     private volatile boolean isRunning = true; // Flag to control the event loop
 
-    private volatile boolean isLogMetrics = false; // Flag to control the event loop
     /**
      * Flag to track if server is stopped completely
      */
@@ -255,9 +253,6 @@ public class CabinServer {
             int readyChannels = selector.select(connectionTimeoutMillis);
 
             if (readyChannels == 0) {
-                if (isLogMetrics) {
-                    performPeriodicTasks();
-                }
                 continue;
             }
 
@@ -341,41 +336,6 @@ public class CabinServer {
     private void handleBackpressure(SelectionKey key) {
         CabinLogger.info("Backpressure detected. Suspending read events temporarily.");
         key.interestOps(key.interestOps() & ~SelectionKey.OP_READ);
-    }
-
-    private void performPeriodicTasks() {
-        try {
-            Map<String, CabinWorkerPool> workerPools = new HashMap<>();
-            workerPools.put("WriteCabinWorkerPool", writeWorkerPool);
-            workerPools.put("ReadCabinWorkerPool", readWorkerPool);
-
-            // Schedule resource logging task if not already scheduled
-            if ((resourceLoggingTask == null || resourceLoggingTask.isCancelled() || resourceLoggingTask.isDone())
-                    && !scheduler.isShutdown()
-                    && !scheduler.isTerminated()
-            ) {
-                resourceLoggingTask = scheduler.scheduleAtFixedRate(() -> {
-                    Monitor.Instance.logResourceUsage(workerPools);
-                }, 0, 30, TimeUnit.SECONDS);
-                CabinLogger.info("Resource logging task scheduled.");
-            }
-
-            // Schedule idle connection cleanup task if not already scheduled
-            if ((idleConnectionTask == null || idleConnectionTask.isCancelled() || idleConnectionTask.isDone())
-                    && !scheduler.isShutdown()
-                    && !scheduler.isTerminated()
-            ) {
-                idleConnectionTask = scheduler.scheduleAtFixedRate(
-                        this::closeIdleConnections,
-                        0,
-                        idleConnectionTimeoutMillis,
-                        TimeUnit.MILLISECONDS
-                );
-                CabinLogger.info("Idle connection cleanup task scheduled.");
-            }
-        } catch (Exception e) {
-            CabinLogger.error("Error performing periodic tasks: " + e.getMessage(), e);
-        }
     }
 
     /**
@@ -694,19 +654,6 @@ public class CabinServer {
             CabinLogger.info("Worker pool shut down successfully.");
         } catch (Exception e) {
             CabinLogger.error("Error shutting down worker pool: " + e.getMessage(), e);
-        }
-
-        // Shut down scheduler
-        try {
-            scheduler.shutdown();
-            if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
-                scheduler.shutdownNow(); // Force shutdown if tasks don't terminate
-                CabinLogger.info("Scheduler forced to shut down.");
-            } else {
-                CabinLogger.info("Scheduler shut down gracefully.");
-            }
-        } catch (Exception e) {
-            CabinLogger.error("Error shutting down scheduler: " + e.getMessage(), e);
         }
 
         // Stop profiler if it's running
