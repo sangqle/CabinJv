@@ -91,6 +91,7 @@ public class BenchmarkScript {
 
         // Add this line
         printSummaryTable();
+        System.exit(0);
     }
 
     private static boolean isServerReachable() {
@@ -234,7 +235,7 @@ public class BenchmarkScript {
                 "/static/small.json"           // Small JSON file
         };
 
-        while (System.currentTimeMillis() - startTime < BENCHMARK_DURATION_SECONDS * 1000) {
+        while (System.currentTimeMillis() - startTime < BENCHMARK_DURATION_SECONDS * 100000) {
             long requestStart = System.currentTimeMillis();
             try {
                 String endpoint = endpoints[random.nextInt(endpoints.length)];
