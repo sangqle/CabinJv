@@ -58,7 +58,11 @@ public class Request {
 
 
     public Request(ByteArrayOutputStream byteArrayOutputStream) throws Exception {
-        parseRequest(byteArrayOutputStream);
+        parseRequest(byteArrayOutputStream.toByteArray());
+    }
+
+    public Request(byte[] requestDataBytes) throws Exception {
+        parseRequest(requestDataBytes);
     }
 
     public String getMethod() {
@@ -97,9 +101,9 @@ public class Request {
         this.pathParams = pathParams;
     }
 
-    private void parseRequest(ByteArrayOutputStream outputStream) throws Exception {
+    private void parseRequest(byte[] requestDataBytes) throws Exception {
         try {
-            byte[] requestDataBytes = outputStream.toByteArray();
+//            byte[] requestDataBytes = outputStream.toByteArray();
             InputStream inputStream = new ByteArrayInputStream(requestDataBytes);
 
             String requestLine = readLine(inputStream);
