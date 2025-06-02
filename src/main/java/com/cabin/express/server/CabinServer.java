@@ -98,14 +98,22 @@ public class CabinServer {
         this.profilerEnabled = enabled;
         ServerProfiler.INSTANCE.setEnabled(enabled);
     }
-    public boolean isProfilerEnabled() { return profilerEnabled; }
+
+    public boolean isProfilerEnabled() {
+        return profilerEnabled;
+    }
 
     public void setProfilerDashboardEnabled(boolean enabled) {
         this.profilerDashboardEnabled = enabled;
     }
-    public boolean isProfilerDashboardEnabled() { return profilerDashboardEnabled; }
 
-    /** Starts the server synchronously **/
+    public boolean isProfilerDashboardEnabled() {
+        return profilerDashboardEnabled;
+    }
+
+    /**
+     * Starts the server synchronously
+     **/
     public boolean start() throws IOException {
         try {
             isStopped = false;
@@ -137,7 +145,9 @@ public class CabinServer {
         }
     }
 
-    /** Starts the server asynchronously with a lifecycle callback **/
+    /**
+     * Starts the server asynchronously with a lifecycle callback
+     **/
     public void start(ServerLifecycleCallback callback) {
         new Thread(() -> {
             try {
@@ -175,12 +185,17 @@ public class CabinServer {
                 if (callback != null) {
                     callback.onServerFailed(e);
                 }
-                try { shutdown(); } catch (Exception ignored) {}
+                try {
+                    shutdown();
+                } catch (Exception ignored) {
+                }
             }
         }, "CabinServer-Main").start();
     }
 
-    /** Core initialization: open selectors and bind server socket **/
+    /**
+     * Core initialization: open selectors and bind server socket
+     **/
     private void initializeServer() throws IOException {
         // 1. Open boss selector
         bossSelector = Selector.open();                                               // :contentReference[oaicite:7]{index=7}
@@ -199,7 +214,9 @@ public class CabinServer {
         serverChannel.register(bossSelector, SelectionKey.OP_ACCEPT);
     }
 
-    /** The “boss” loop only handles OP_ACCEPT and dispatches to worker selectors **/
+    /**
+     * The “boss” loop only handles OP_ACCEPT and dispatches to worker selectors
+     **/
     private void runBossLoop() {
         try {
             while (isRunning) {
@@ -225,7 +242,11 @@ public class CabinServer {
                             // Register clientChannel with the selected worker selector for OP_READ
                             Selector targetSelector = workerSelectors[workerIdx];
                             targetSelector.wakeup(); // wake up worker’s select if blocked
-                            clientChannel.register(targetSelector, SelectionKey.OP_READ, new ClientContext());
+                            ClientContext ctx = new ClientContext();
+                            ctx.selector = targetSelector;
+                            SelectionKey selectionKey = clientChannel.register(targetSelector, SelectionKey.OP_READ, ctx);
+                            ctx.selectionKey = selectionKey;
+                            clientChannel.register(targetSelector, SelectionKey.OP_READ, ctx);
                             // Track last active time for timeouts
                             connectionLastActive.put(clientChannel, System.currentTimeMillis());
                         }
@@ -243,7 +264,9 @@ public class CabinServer {
         }
     }
 
-    /** Each worker loop processes OP_READ / OP_WRITE for its assigned channels **/
+    /**
+     * Each worker loop processes OP_READ / OP_WRITE for its assigned channels
+     **/
     private void runWorkerLoop(int index) {
         Selector workerSelector = workerSelectors[index];
         ByteBuffer readBuffer = ByteBuffer.allocateDirect(32 * 1024); // 32KB per worker :contentReference[oaicite:10]{index=10}
@@ -268,16 +291,21 @@ public class CabinServer {
                     ClientContext context = (ClientContext) key.attachment();
                     SocketChannel clientChannel = (SocketChannel) key.channel();
 
-                    if (key.isReadable()) {
-                        // Disable read interest until processing is done
-                        key.interestOps(key.interestOps() & ~SelectionKey.OP_READ);
-                        readWorkerPool.submitTask(() -> handleRead(clientChannel, context, workerSelector));
-                    }
+                    try {
+                        if (key.isReadable()) {
+                            // Disable read interest until processing is done
+                            key.interestOps(key.interestOps() & ~SelectionKey.OP_READ);
+                            readWorkerPool.submitTask(() -> handleRead(clientChannel, context, workerSelector));
+                        }
 
-                    if (key.isWritable()) {
-                        // Handle pending writes
-                        key.interestOps(key.interestOps() & ~SelectionKey.OP_WRITE);
-                        writeWorkerPool.submitTask(() -> handleWrite(clientChannel, context, workerSelector));
+                        if (key.isValid() && key.isWritable()) {
+                            // Handle pending writes
+                            key.interestOps(key.interestOps() & ~SelectionKey.OP_WRITE);
+                            writeWorkerPool.submitTask(() -> handleWrite(clientChannel, context, workerSelector));
+                        }
+                    } catch (CancelledKeyException e) {
+                        // Key was cancelled, likely due to closeConnection
+                        CabinLogger.warn("Cancelled key for client: " + clientChannel.getRemoteAddress());
                     }
                 }
             }
@@ -285,11 +313,16 @@ public class CabinServer {
             CabinLogger.error("Worker selector " + index + " error: " + e.getMessage(), e);
         } finally {
             // Clean up if needed
-            try { workerSelector.close(); } catch (IOException ignored) {}
+            try {
+                workerSelector.close();
+            } catch (IOException ignored) {
+            }
         }
     }
 
-    /** Read handler submitted to readWorkerPool **/
+    /**
+     * Read handler submitted to readWorkerPool
+     **/
     private void handleRead(SocketChannel clientChannel, ClientContext context, Selector workerSelector) {
         try {
             ByteBuffer buffer = ByteBuffer.allocate(8192);
@@ -328,7 +361,9 @@ public class CabinServer {
         }
     }
 
-    /** Write handler submitted to writeWorkerPool **/
+    /**
+     * Write handler submitted to writeWorkerPool
+     **/
     private void handleWrite(SocketChannel clientChannel, ClientContext context, Selector workerSelector) {
         try {
             // Assuming context.pendingResponse holds the ByteBuffer to write
@@ -359,7 +394,9 @@ public class CabinServer {
         }
     }
 
-    /** Processes an HTTP request (parsing headers/body, invoking router) **/
+    /**
+     * Processes an HTTP request (parsing headers/body, invoking router)
+     **/
     private void processHttpRequest(SocketChannel clientChannel, ClientContext context) {
         try {
             byte[] requestData = context.requestBuffer.toByteArray();
@@ -389,12 +426,13 @@ public class CabinServer {
             ByteBuffer respBuffer = response.toByteBuffer();
             context.setPendingResponse(respBuffer);
 
-            // Register interest for OP_WRITE so handleWrite sends it
-            Selector sel = clientChannel.keyFor(workerSelectors[nextWorkerIndex]).selector();
-            sel.wakeup();
-            SelectionKey key = clientChannel.keyFor(sel);
+            // Use the selector stored in context
+            Selector sel = context.selector;
+            SelectionKey key = context.selectionKey;
+
             if (key != null && key.isValid()) {
                 key.interestOps(key.interestOps() | SelectionKey.OP_WRITE);
+                sel.wakeup();
             }
             // Reset requestBuffer for next request
             context.requestBuffer.reset();
@@ -408,7 +446,9 @@ public class CabinServer {
         }
     }
 
-    /** Checks HTTP request completeness **/
+    /**
+     * Checks HTTP request completeness
+     **/
     private boolean isRequestComplete(byte[] requestData) {
         String s = new String(requestData, StandardCharsets.ISO_8859_1);
         if (!s.contains("\r\n\r\n")) return false;
@@ -424,7 +464,9 @@ public class CabinServer {
         return true;
     }
 
-    /** Closes a client connection and cancels its key **/
+    /**
+     * Closes a client connection and cancels its key
+     **/
     private void closeConnection(SocketChannel channel, Selector selector) {
         try {
             SelectionKey key = channel.keyFor(selector);
@@ -439,7 +481,9 @@ public class CabinServer {
         }
     }
 
-    /** Periodically close idle connections **/
+    /**
+     * Periodically close idle connections
+     **/
     private void closeIdleConnections() {
         long now = System.currentTimeMillis();
         for (Map.Entry<SocketChannel, Long> entry : connectionLastActive.entrySet()) {
@@ -451,13 +495,17 @@ public class CabinServer {
         }
     }
 
-    /** Adds a router as middleware **/
+    /**
+     * Adds a router as middleware
+     **/
     public void use(Router router) {
         if (router == null) throw new IllegalArgumentException("Router cannot be null");
         middlewareStack.add(router);
     }
 
-    /** Adds a router with a prefix (mount) **/
+    /**
+     * Adds a router with a prefix (mount)
+     **/
     public void use(String path, Router router) {
         if (router == null) throw new IllegalArgumentException("Router cannot be null");
         Router mounted = new Router();
@@ -465,13 +513,17 @@ public class CabinServer {
         middlewareStack.add(mounted);
     }
 
-    /** Adds any generic middleware **/
+    /**
+     * Adds any generic middleware
+     **/
     public void use(Middleware m) {
         if (m == null) throw new IllegalArgumentException("Middleware cannot be null");
         middlewareStack.add(m);
     }
 
-    /** Sends 500 on exception **/
+    /**
+     * Sends 500 on exception
+     **/
     private void sendInternalServerError(SocketChannel clientChannel, Selector selector) {
         try {
             Response resp = new Response(clientChannel);
@@ -483,7 +535,9 @@ public class CabinServer {
         }
     }
 
-    /** Initiates shutdown: closes boss & worker selectors, channels, pools **/
+    /**
+     * Initiates shutdown: closes boss & worker selectors, channels, pools
+     **/
     private void shutdown() {
         CabinLogger.info("Initiating server shutdown...");
 
@@ -537,7 +591,9 @@ public class CabinServer {
         CabinLogger.info("Server shutdown complete.");
     }
 
-    /** Stops server gracefully within timeoutMillis **/
+    /**
+     * Stops server gracefully within timeoutMillis
+     **/
     public boolean stop(long timeoutMillis) {
         CabinLogger.info("Stop signal received. Shutting down server...");
         long start = System.currentTimeMillis();
@@ -556,28 +612,41 @@ public class CabinServer {
         }
         return isStopped;
     }
-    public boolean stop() { return stop(5000); }
 
-    public int getPort() { return port; }
+    public boolean stop() {
+        return stop(5000);
+    }
 
-    /** Sets up profiler dashboard routes **/
+    public int getPort() {
+        return port;
+    }
+
+    /**
+     * Sets up profiler dashboard routes
+     **/
     private void setupDashboard() {
         DashboardReporter dashboardReport = new DashboardReporter();
         ServerProfiler.INSTANCE.addReporter(dashboardReport);
         this.use(dashboardReport.getRouter());
     }
 
-    /** Simple per‐connection state */
+    /**
+     * Simple per‐connection state
+     */
     private static class ClientContext {
         ByteArrayOutputStream requestBuffer = new ByteArrayOutputStream(8192);
         ByteBuffer pendingResponse; // store outbound data for OP_WRITE
+        Selector selector;
+        SelectionKey selectionKey;
 
         void setPendingResponse(ByteBuffer buf) {
             this.pendingResponse = buf;
         }
+
         ByteBuffer getPendingResponse() {
             return pendingResponse;
         }
+
         void clearPendingResponse() {
             pendingResponse = null;
         }

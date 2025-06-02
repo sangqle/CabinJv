@@ -24,8 +24,8 @@ public class BenchmarkScript {
 
     private static final String SERVER_URL = "http://localhost:8080"; // Change to your server URL
     private static final int WARMUP_REQUESTS = 100;
-    private static final int BENCHMARK_DURATION_SECONDS = 30;
-    private static final int[] THREAD_COUNTS = {200}; // Different thread counts to test
+    private static final int BENCHMARK_DURATION_SECONDS = 10;
+    private static final int[] THREAD_COUNTS = {300}; // Different thread counts to test
     private static final List<BenchmarkResult> allResults = new ArrayList<>();
 
     // Statistics tracking
@@ -85,9 +85,9 @@ public class BenchmarkScript {
         }
 
         // Run different benchmark scenarios
-        runPostRequestBenchmark();
+//        runPostRequestBenchmark();
         runGetRequestBenchmark();
-        runMixedWorkloadBenchmark();
+//        runMixedWorkloadBenchmark();
 
         // Add this line
         printSummaryTable();
