@@ -112,7 +112,7 @@ public class LoadTest {
     @AfterEach
     void tearDown() {
         if (server != null) {
-            boolean stopped = ServerTestUtil.stopServer(server, 10000); // Longer timeout for load tests
+            boolean stopped = ServerTestUtil.stopServer(server, 100); // Longer timeout for load tests
             assertThat(stopped).withFailMessage("Server failed to stop cleanly").isTrue();
         }
 

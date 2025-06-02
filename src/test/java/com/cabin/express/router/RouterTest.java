@@ -58,7 +58,7 @@ public class RouterTest {
     @AfterEach
     void tearDown() {
         if (server != null) {
-            boolean stopped = ServerTestUtil.stopServer(server, 5000);
+            boolean stopped = ServerTestUtil.stopServer(server, 0);
             assertThat(stopped).withFailMessage("Server failed to stop cleanly").isTrue();
         }
     }

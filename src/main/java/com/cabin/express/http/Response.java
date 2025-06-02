@@ -278,4 +278,11 @@ public class Response {
     public boolean isSend() {
         return bufferOut != null && bufferOut.size() > 0;
     }
+
+    public ByteBuffer toByteBuffer() {
+        if (bufferOut == null || bufferOut.size() == 0) {
+            return ByteBuffer.allocate(0); // Return an empty ByteBuffer if no content
+        }
+        return ByteBuffer.wrap(bufferOut.toByteArray());
+    }
 }

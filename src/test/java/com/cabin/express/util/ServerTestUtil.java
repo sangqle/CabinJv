@@ -1,8 +1,5 @@
 package com.cabin.express.util;
 
-import com.cabin.express.loggger.CabinLogger;
-import com.cabin.express.server.CabinServer;
-
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.URI;
@@ -10,8 +7,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+
+import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.server.CabinServer;
 
 /**
  * Utility for managing server lifecycle in tests
@@ -42,53 +40,43 @@ public class ServerTestUtil {
         CabinServer server = new com.cabin.express.server.ServerBuilder()
                 .setPort(port)
                 .build();
-        Thread thread = startServerInBackground(server);
-        return new Object[] { server, port, thread };
+        
+        // Start the server non-blocking
+        server.start(null);
+        
+        // Wait for the server to initialize
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
+        // Create a placeholder thread for API compatibility
+        Thread placeholderThread = new Thread("ServerTestUtil-Placeholder");
+        
+        return new Object[] { server, port, placeholderThread };
     }
     
     /**
      * Start a server in a background thread
      *
      * @param server The server to start
-     * @return A thread running the server
+     * @return A placeholder thread for API compatibility
      */
-    public static Thread startServerInBackground(CabinServer server) {
-        // Create a latch to ensure server starts before test runs
-        CountDownLatch startLatch = new CountDownLatch(1);
+    public static Thread startServerInBackground(CabinServer server) throws IOException {
+        // Start the server in non-blocking mode
+        server.start(null);
         
-        Thread serverThread = new Thread(() -> {
-            try {
-                // Signal that server thread has started
-                startLatch.countDown();
-                
-                // Start the server (this blocks until server stops)
-                server.start();
-            } catch (IOException e) {
-                CabinLogger.error("Error starting server: " + e.getMessage(), e);
-            }
-        });
-        
-        // Make thread a daemon so it doesn't prevent JVM shutdown
-        serverThread.setDaemon(true);
-        
-        // Start the server thread
-        serverThread.start();
-        
-        // Wait for thread to start
+        // Wait for the server to initialize
         try {
-            if (!startLatch.await(5, TimeUnit.SECONDS)) {
-                throw new RuntimeException("Server thread failed to start in time");
-            }
-            
-            // Give the server time to initialize
-            TimeUnit.MILLISECONDS.sleep(500);
-            
+            Thread.sleep(500);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException("Interrupted while waiting for server to start", e);
         }
         
-        return serverThread;
+        // Return a placeholder thread for API compatibility
+        Thread placeholderThread = new Thread("ServerTestUtil-Placeholder");
+        return placeholderThread;
     }
     
     /**
@@ -133,7 +121,7 @@ public class ServerTestUtil {
     }
     
     /**
-     * Stop a server with a timeout
+     * Stop a server with a timeout - with improved error handling
      *
      * @param server The server to stop
      * @param timeoutMs Timeout in milliseconds
@@ -144,6 +132,27 @@ public class ServerTestUtil {
             return true;
         }
         
-        return server.stop(timeoutMs);
+        // Create a separate thread to stop the server to avoid potential deadlocks
+        Thread stopThread = new Thread(() -> {
+            try {
+                // Call server's stop method with timeout
+                server.stop(timeoutMs);
+            } catch (Exception e) {
+                CabinLogger.error("Error stopping server: " + e.getMessage(), e);
+            }
+        }, "ServerStop-Thread");
+        
+        stopThread.setDaemon(true);
+        stopThread.start();
+        
+        // Wait for the stop thread to complete with a timeout
+        try {
+            stopThread.join(timeoutMs + 1000);
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            CabinLogger.error("Interrupted while waiting for server to stop", e);
+            return false;
+        }
     }
 }

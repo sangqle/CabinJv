@@ -12,6 +12,9 @@ support, and efficient request/response handling.
 
 See [RELEASE.md](RELEASE.md) for full release history and upgrade notes.
 
+## Benchmark Results
+See [BENCHMARK.md](BENCHMARK.md) for detailed performance benchmarks.
+
 ## Framework Architecture
 
 ### Core Components

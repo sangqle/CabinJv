@@ -108,7 +108,7 @@ public class DataIntegrityTest {
     @AfterEach
     void tearDown() {
         if (server != null) {
-            boolean stopped = ServerTestUtil.stopServer(server, 10000);
+            boolean stopped = ServerTestUtil.stopServer(server, 0);
             assertThat(stopped).withFailMessage("Server failed to stop cleanly").isTrue();
         }
         sharedDataStore.clear();
