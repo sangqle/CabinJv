@@ -41,7 +41,7 @@ public class BenchmarkServer {
         CabinServer server = new ServerBuilder()
                 .setPort(DEFAULT_PORT)
                 .setDefaultPoolSize(50)  // Higher thread pool for benchmark
-                .setMaxPoolSize(200)     // Allow scaling under load
+                .setMaxPoolSize(300)     // Allow scaling under load
                 .build();
 
         // Setup static file serving
