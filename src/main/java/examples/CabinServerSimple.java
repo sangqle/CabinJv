@@ -8,10 +8,11 @@ import java.io.IOException;
 
 public class CabinServerSimple {
     public static void main(String[] args) throws IOException {
-        CabinServer server = new ServerBuilder().setPort(8080).build();
+        CabinServer server = new ServerBuilder().setPort(8080)
+                .setDefaultPoolSize(200).build();
         Router router = new Router();
         router.get("/", (req, res) -> {
-            res.writeBody("Hello World");
+            res.writeBody("Hello World!");
             res.send();
         });
         server.use(router);

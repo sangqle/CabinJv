@@ -1,6 +1,24 @@
 Use K6 for load testing a Java application with multiple endpoints and payloads.
 
-## Benchmarking with k6
+# Benchmarking Java Application with k6
+
+## 1. Plaintext
+### Devices:
+- **OS**: Macos 15
+- **Device**: Apple M1 Pro 8-Core CPU - 16 GB RAM
+
+### Frameworks comparison:
+![img.png](benchmark-static/img/img.png)
+
+![img_1.png](benchmark-static/img/img_1.png)
+
+![img_2.png](benchmark-static/img/img_2.png)
+
+![img_3.png](benchmark-static/img/img_3.png)
+
+---
+
+## 2. Benchmarking with multiple endpoints and payloads using k6
 ### Requirements
 
 OS and Device:
@@ -25,34 +43,6 @@ Setup:
 ### Test results
 ```bash
  k6 run k6.js
-
-         /\      Grafana   /‾‾/  
-    /\  /  \     |\  __   /  /   
-   /  \/    \    | |/ /  /   ‾‾\ 
-  /          \   |   (  |  (‾)  |
- / __________ \  |_|\_\  \_____/ 
-
-     execution: local
-        script: k6.js
-        output: -
-
-     scenarios: (100.00%) 3 scenarios, 3000 max VUs, 1m5s max duration (incl. graceful stop):
-              * get_main_100: 1000 looping VUs for 30s (exec: getScenario, startTime: 5s, gracefulStop: 30s)
-              * mixed_main_100: 1000 looping VUs for 30s (exec: mixedScenario, startTime: 5s, gracefulStop: 30s)
-              * post_main_100: 1000 looping VUs for 30s (exec: postScenario, startTime: 5s, gracefulStop: 30s)
-
-WARN[0007] The test has generated metrics with 102626 unique time series, which is higher than the suggested limit of 100000 and could cause high memory usage. Consider not using high-cardinality values like unique IDs as metric tags or, if you need them in the URL, use the name metric tag or URL grouping. See https://grafana.com/docs/k6/latest/using-k6/tags-and-groups/ for details.  component=metrics-engine-ingester
-WARN[0017] The test has generated metrics with 200033 unique time series, which is higher than the suggested limit of 100000 and could cause high memory usage. Consider not using high-cardinality values like unique IDs as metric tags or, if you need them in the URL, use the name metric tag or URL grouping. See https://grafana.com/docs/k6/latest/using-k6/tags-and-groups/ for details.  component=metrics-engine-ingester
-
-
-  █ THRESHOLDS 
-
-    http_req_duration
-    ✓ 'p(95)<500' p(95)=202.53ms
-
-    http_req_failed
-    ✓ 'rate<0.05' rate=0.15%
-
 
   █ TOTAL RESULTS 
 

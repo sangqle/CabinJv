@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 public class RunBenchmarkServer {
     @Test
     public void startBenchmarkServer() throws IOException {
+        System.err.println("Starting BenchmarkServer...");
         BenchmarkServer.startBenchmarkServer();
     }
 }
