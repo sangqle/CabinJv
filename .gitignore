@@ -44,5 +44,4 @@ bin/
 hs_err_*
 
 /uploads/
-/.github/
 /gradle/
