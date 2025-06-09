@@ -6,6 +6,7 @@ module.exports = {
   favicon: "img/logo.png",
   organizationName: "CabinJV", // for deploymentj
   projectName: "cabinJ", // repo name
+  deploymentBranch: "gh-pages",
 
   themeConfig: {
     navbar: {
@@ -25,8 +26,7 @@ module.exports = {
       ],
     },
     footer: {
-      links: [
-      ],
+      links: [],
       copyright: `© ${new Date().getFullYear()} CabinJV`,
     },
     prism: {
