@@ -1,46 +1,43 @@
 name: Build & Deploy Docs
-
-# Trigger on pushes to your main branch (adjust if you use 'master' or a release branch)
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   deploy-docs:
     runs-on: ubuntu-latest
     permissions:
-      pages: write       # needed for the new pages actions
-      id-token: write    # needed if you want to use OIDC for cross-repo deploys (optional)
+      pages: write        # allow publishing to Pages
+      id-token: write     # required for OIDC, optional otherwise
     steps:
-      # 1. Check out your code
+      # 1) Check out the code
       - uses: actions/checkout@v3
 
-      # 2. Install Node (Docusaurus requires Node ≥14; adjust as needed)
+      # 2) Set up Node.js for Docusaurus
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '16'
+          node-version: '16'      # Docusaurus needs ≥14
 
-      # 3. Install dependencies and build inside docs/
-      - name: Install Docusaurus dependencies
+      # 3) Install & build inside docs/
+      - name: Install dependencies
         working-directory: docs
         run: npm ci
-
       - name: Build Docusaurus site
         working-directory: docs
-        run: npm run build
+        run: npm run build        # outputs to docs/build
 
-      # 4. Configure GitHub Pages (new official actions)
+      # 4) Enable Pages
       - name: Configure GitHub Pages
-        uses: actions/configure-pages@v3
+        uses: actions/configure-pages@v3     # beta Pages setup :contentReference[oaicite:3]{index=3}
 
-      # 5. Upload the static site (`docs/build`) as an artifact
-      - name: Upload site artifact
-        uses: actions/upload-pages-artifact@v1
+      # 5) Upload the static build (not using deprecated artifact actions)
+      - name: Upload site for deployment
+        uses: actions/upload-pages-artifact@v1  # packages docs/build :contentReference[oaicite:4]{index=4}
         with:
           path: docs/build
 
-      # 6. Deploy to GitHub Pages
+      # 6) Deploy to Pages
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v1
