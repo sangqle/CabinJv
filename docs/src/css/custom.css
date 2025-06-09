@@ -1,0 +1,36 @@
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
+ */
+
+/* You can override the default Infima variables here. */
+:root {
+  /* Primary = Java Orange */
+  --ifm-color-primary:        #ED8B00; /* Java Orange */
+  --ifm-color-primary-dark:   #BD6F00; /* –20% brightness */
+  --ifm-color-primary-darker: #9A5A00; /* –35% brightness */
+  --ifm-color-primary-darkest: #764500; /* –50% brightness */
+
+  --ifm-color-primary-light:   #FF9C11; /* +15% brightness */
+  --ifm-color-primary-lighter: #FFB040; /* +35% brightness */
+  --ifm-color-primary-lightest:#FFC87C; /* +60% brightness */
+
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(237, 139, 0, 0.1);
+}
+
+/* For readability concerns, you should choose a lighter palette in dark mode. */
+[data-theme='dark'] {
+  /* Lightened Java Orange for dark backgrounds */
+  --ifm-color-primary:        #FFBF64; /* +50% lightness */
+  --ifm-color-primary-dark:   #FFB040; /* +35% lightness */
+  --ifm-color-primary-darker: #FF9C11; /* +15% lightness */
+  --ifm-color-primary-darkest: #ED8B00; /* base */
+
+  --ifm-color-primary-light:   #FFC87C; /* +60% lightness */
+  --ifm-color-primary-lighter: #FEDCAB; /* +80% lightness */
+  --ifm-color-primary-lightest:#FEE6C3; /* +90% lightness */
+
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
