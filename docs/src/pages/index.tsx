@@ -49,7 +49,7 @@ export default function Home(): ReactNode {
       <main>
         <HomepageFeatures />
         <CodeShowcase />
-        <Testimonials />
+        {/* <Testimonials /> */}
         <CallToAction />
       </main>
     </Layout>

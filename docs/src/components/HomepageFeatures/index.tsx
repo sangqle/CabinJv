@@ -5,7 +5,7 @@ import styles from './styles.module.css';
 
 type FeatureItem = {
   title: string;
-  Svg: React.ComponentType<React.ComponentProps<'svg'>>;
+  imgPath: string;
   description: ReactNode;
   iconBackground: string;
 };
@@ -13,7 +13,7 @@ type FeatureItem = {
 const FeatureList: FeatureItem[] = [
   {
     title: 'Lightweight & Efficient',
-    Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
+    imgPath: '/img/slide1.png',
     description: (
       <>
         CabinJ is designed to be lightweight with minimal overhead,
@@ -24,7 +24,7 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: 'Simple & Intuitive',
-    Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
+    imgPath: '/img/slide2.png',
     description: (
       <>
         Get started quickly with CabinJ's intuitive API. Clear conventions
@@ -35,7 +35,7 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: 'Highly Extensible',
-    Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
+    imgPath :'/img/slide3.png',
     description: (
       <>
         Extend and customize CabinJ to fit your needs. The modular architecture
@@ -46,12 +46,12 @@ const FeatureList: FeatureItem[] = [
   },
 ];
 
-function Feature({title, Svg, description, iconBackground}: FeatureItem) {
+function Feature({title, imgPath, description, iconBackground}: FeatureItem) {
   return (
     <div className={clsx('col col--4', styles.featureColumn)}>
       <div className={styles.featureCard}>
         <div className={styles.featureIconContainer} style={{background: iconBackground}}>
-          <Svg className={styles.featureSvg} role="img" />
+          <img src={imgPath} role="img" />
         </div>
         <div className={styles.featureContent}>
           <Heading as="h3" className={styles.featureTitle}>{title}</Heading>
