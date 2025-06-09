@@ -7,6 +7,7 @@ type FeatureItem = {
   title: string;
   Svg: React.ComponentType<React.ComponentProps<'svg'>>;
   description: ReactNode;
+  iconBackground: string;
 };
 
 const FeatureList: FeatureItem[] = [
@@ -19,6 +20,7 @@ const FeatureList: FeatureItem[] = [
         making your Java applications faster and more resource-efficient.
       </>
     ),
+    iconBackground: 'linear-gradient(135deg, #06b6d4 0%, #0ea5e9 100%)'
   },
   {
     title: 'Simple & Intuitive',
@@ -29,6 +31,7 @@ const FeatureList: FeatureItem[] = [
         and straightforward patterns make development a breeze.
       </>
     ),
+    iconBackground: 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
   },
   {
     title: 'Highly Extensible',
@@ -39,18 +42,21 @@ const FeatureList: FeatureItem[] = [
         allows you to use only what you need while adding your own components.
       </>
     ),
+    iconBackground: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)'
   },
 ];
 
-function Feature({title, Svg, description}: FeatureItem) {
+function Feature({title, Svg, description, iconBackground}: FeatureItem) {
   return (
-    <div className={clsx('col col--4')}>
-      {/* <div className="text--center">
-        <Svg className={styles.featureSvg} role="img" />
-      </div> */}
-      <div className="text--center padding-horiz--md">
-        <Heading as="h3">{title}</Heading>
-        <p>{description}</p>
+    <div className={clsx('col col--4', styles.featureColumn)}>
+      <div className={styles.featureCard}>
+        <div className={styles.featureIconContainer} style={{background: iconBackground}}>
+          <Svg className={styles.featureSvg} role="img" />
+        </div>
+        <div className={styles.featureContent}>
+          <Heading as="h3" className={styles.featureTitle}>{title}</Heading>
+          <p className={styles.featureDescription}>{description}</p>
+        </div>
       </div>
     </div>
   );
@@ -60,6 +66,7 @@ export default function HomepageFeatures(): ReactNode {
   return (
     <section className={styles.features}>
       <div className="container">
+        <Heading as="h2" className={styles.featuresTitle}>Why Choose CabinJ?</Heading>
         <div className="row">
           {FeatureList.map((props, idx) => (
             <Feature key={idx} {...props} />
