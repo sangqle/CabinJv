@@ -311,7 +311,5 @@ Now that you have a basic CabinJ application up and running, you can explore mor
 - Learn about [Request](../core/request.md) and [Response](../core/response.md) objects
 - Explore more advanced [Routing](../core/routing.md) techniques
 - Understand how to use [Middleware](../core/middleware.md) effectively
-- Add [Static File Serving](../guides/static-files.md) for your frontend assets
-- Implement [Error Handling](../guides/error-handling.md) for robust applications
 
 Check out the rest of our documentation for detailed information on all CabinJ features.
