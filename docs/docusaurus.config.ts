@@ -1,10 +1,10 @@
 module.exports = {
   title: "CabinJ", // your framework’s name
   tagline: "Lightweight Java Web Framework",
-  url: "https://your-domain.com", // change to your production URL
+  url: "https://cabinj.com", // change to your production URL
   baseUrl: "/", // so pages live under /docs/*
   favicon: "img/logo.png",
-  organizationName: "CabinJV", // for deployment
+  organizationName: "CabinJV", // for deploymentj
   projectName: "cabinJ", // repo name
 
   themeConfig: {
