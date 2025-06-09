@@ -1,0 +1,46 @@
+name: Build & Deploy Docs
+
+# Trigger on pushes to your main branch (adjust if you use 'master' or a release branch)
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy-docs:
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write       # needed for the new pages actions
+      id-token: write    # needed if you want to use OIDC for cross-repo deploys (optional)
+    steps:
+      # 1. Check out your code
+      - uses: actions/checkout@v3
+
+      # 2. Install Node (Docusaurus requires Node ≥14; adjust as needed)
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      # 3. Install dependencies and build inside docs/
+      - name: Install Docusaurus dependencies
+        working-directory: docs
+        run: npm ci
+
+      - name: Build Docusaurus site
+        working-directory: docs
+        run: npm run build
+
+      # 4. Configure GitHub Pages (new official actions)
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v3
+
+      # 5. Upload the static site (`docs/build`) as an artifact
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: docs/build
+
+      # 6. Deploy to GitHub Pages
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v1
