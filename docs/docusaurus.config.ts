@@ -8,6 +8,19 @@ module.exports = {
   projectName: "cabinJ", // repo name
 
   themeConfig: {
+    metadata: [
+      { name: "keywords", content: "CabinJ, Java, Web Framework, Lightweight, Fast" },
+      { name: "description", content: "CabinJ is a lightweight Java web framework designed for simplicity and performance." },
+      { name: "og:title", content: "CabinJ - Lightweight Java Web Framework" },
+      { name: "og:description", content: "CabinJ is a lightweight Java web framework designed for simplicity and performance." },
+      { name: "og:image", content: "https://cabinj.com/img/logo-m.png" },
+      { name: "og:url", content: "https://cabinj.com" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:site", content: "@CabinJV" },
+      { name: "twitter:title", content: "CabinJ - Lightweight Java Web Framework" },
+      { name: "twitter:description", content: "CabinJ is a lightweight Java web framework designed for simplicity and performance." },
+      { name: "twitter:image", content: "https://cabinj.com/img/logo-m.png" },
+    ],
     navbar: {
       title: "CabinJ",
       logo: { alt: "CabinJ Logo", src: "img/logo.png" },
