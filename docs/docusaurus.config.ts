@@ -3,7 +3,7 @@ module.exports = {
   tagline: "Lightweight Java Web Framework",
   url: "https://cabinj.com", // change to your production URL
   baseUrl: "/", // so pages live under /docs/*
-  favicon: "img/logo.png",
+  favicon: "img/logo-blue.png",
   organizationName: "CabinJV", // for deploymentj
   projectName: "cabinJ", // repo name
 
@@ -13,17 +13,17 @@ module.exports = {
       { name: "description", content: "CabinJ is a lightweight Java web framework designed for simplicity and performance." },
       { name: "og:title", content: "CabinJ - Lightweight Java Web Framework" },
       { name: "og:description", content: "CabinJ is a lightweight Java web framework designed for simplicity and performance." },
-      { name: "og:image", content: "https://cabinj.com/img/logo-m.png" },
+      { name: "og:image", content: "https://cabinj.com/img/logo-blue.png" },
       { name: "og:url", content: "https://cabinj.com" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@CabinJV" },
       { name: "twitter:title", content: "CabinJ - Lightweight Java Web Framework" },
       { name: "twitter:description", content: "CabinJ is a lightweight Java web framework designed for simplicity and performance." },
-      { name: "twitter:image", content: "https://cabinj.com/img/logo-m.png" },
+      { name: "twitter:image", content: "https://cabinj.com/img/logo-blue.png" },
     ],
     navbar: {
       title: "CabinJ",
-      logo: { alt: "CabinJ Logo", src: "img/logo.png" },
+      logo: { alt: "CabinJ Logo", src: "img/logo-blue.png" },
       items: [
         { to: "getting-started/installation", label: "Docs", position: "left" },
         {

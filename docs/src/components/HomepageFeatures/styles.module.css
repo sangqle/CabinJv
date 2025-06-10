@@ -9,7 +9,7 @@
 .featuresTitle {
   text-align: center;
   margin-bottom: 3rem;
-  color: #1e293b;
+  color: var(--ifm-color-primary-darker);
   font-size: 2.25rem;
 }
 
@@ -56,7 +56,7 @@
 .featureTitle {
   font-size: 1.5rem;
   margin-bottom: 1rem;
-  color: #1e293b;
+  color: var(--ifm-color-primary-darker);
   text-align: center;
 }
 
@@ -64,6 +64,29 @@
   color: #64748b;
   line-height: 1.6;
   text-align: center;
+}
+
+/* Dark mode support */
+[data-theme='dark'] .features {
+  background-color: #18181b;
+}
+
+[data-theme='dark'] .featureCard {
+  background: #23272f;
+  border: 1px solid #30363d;
+}
+
+[data-theme='dark'] .featureContent {
+  background-color: #23272f;
+}
+
+[data-theme='dark'] .featuresTitle,
+[data-theme='dark'] .featureTitle {
+  color: var(--ifm-color-primary-lightest);
+}
+
+[data-theme='dark'] .featureDescription {
+  color: #b3b9c5;
 }
 
 /* Responsive adjustments */

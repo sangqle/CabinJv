@@ -8,8 +8,8 @@
   text-align: left;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, #1a365d 0%, #2563eb 100%);
-  color: white;
+  /* background: linear-gradient(135deg, #1a365d 0%, #2563eb 100%); */
+  /* color: linear-gradient(135deg, #1a365d 0%, #2563eb 100%); */
 }
 
 .heroContent {
@@ -26,6 +26,12 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  /*
+  Hidden for mobile view
+  */
+  @media screen and (max-width: 966px) {
+    display: none;
+  }
 }
 
 .heroGraphic img {
@@ -43,7 +49,6 @@
 .heroSubtitle {
   font-size: 1.5rem;
   margin-bottom: 2rem;
-  opacity: 0.9;
 }
 
 .heroButtons {
@@ -93,6 +98,10 @@
 .codeShowcase {
   padding: 4rem 0;
   background-color: #f8fafc;
+}
+
+[data-theme='dark'] .codeShowcase {
+  background-color: #18181b;
 }
 
 .codeBlock {
@@ -170,8 +179,7 @@
 .callToAction {
   padding: 4rem 0;
   text-align: center;
-  background: linear-gradient(135deg, #1a365d 0%, #2563eb 100%);
-  color: white;
+  /* background: linear-gradient(135deg, #1a365d 0%, #2563eb 100%); */
 }
 
 .callToAction h2 {
