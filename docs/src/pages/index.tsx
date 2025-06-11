@@ -31,7 +31,7 @@ function HomepageHeader() {
             </div>
           </div>
           <div className={styles.heroGraphic}>
-            <img src="/img/banner.jpg" alt="CabinJ Framework" />
+            <img src="https://zmp-community.zdn.vn/community/aaecb1478e02675c3e13.jpg" alt="CabinJ Framework" />
           </div>
         </div>
       </div>

@@ -9,17 +9,43 @@ module.exports = {
 
   themeConfig: {
     metadata: [
-      { name: "keywords", content: "CabinJ, Java, Web Framework, Lightweight, Fast" },
-      { name: "description", content: "CabinJ is a lightweight Java web framework designed for simplicity and performance." },
+      {
+        name: "keywords",
+        content: "CabinJ, Java, Web Framework, Lightweight, Fast",
+      },
+      {
+        name: "description",
+        content:
+          "CabinJ is a lightweight Java web framework designed for simplicity and performance.",
+      },
       { name: "og:title", content: "CabinJ - Lightweight Java Web Framework" },
-      { name: "og:description", content: "CabinJ is a lightweight Java web framework designed for simplicity and performance." },
-      { name: "og:image", content: "https://cabinj.com/img/logo-blue.png" },
+      {
+        name: "og:description",
+        content:
+          "CabinJ is a lightweight Java web framework designed for simplicity and performance.",
+      },
+      {
+        name: "og:image",
+        content:
+          "https://zmp-community.zdn.vn/community/aaecb1478e02675c3e13.jpg",
+      },
       { name: "og:url", content: "https://cabinj.com" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@CabinJV" },
-      { name: "twitter:title", content: "CabinJ - Lightweight Java Web Framework" },
-      { name: "twitter:description", content: "CabinJ is a lightweight Java web framework designed for simplicity and performance." },
-      { name: "twitter:image", content: "https://cabinj.com/img/logo-blue.png" },
+      {
+        name: "twitter:title",
+        content: "CabinJ - Lightweight Java Web Framework",
+      },
+      {
+        name: "twitter:description",
+        content:
+          "CabinJ is a lightweight Java web framework designed for simplicity and performance.",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://zmp-community.zdn.vn/community/aaecb1478e02675c3e13.jpg",
+      },
     ],
     navbar: {
       title: "CabinJ",
@@ -38,8 +64,7 @@ module.exports = {
       ],
     },
     footer: {
-      links: [
-      ],
+      links: [],
       copyright: `© ${new Date().getFullYear()} CabinJV`,
     },
     prism: {

@@ -13,7 +13,7 @@ type FeatureItem = {
 const FeatureList: FeatureItem[] = [
   {
     title: 'Lightweight & Efficient',
-    imgPath: '/img/slide1.png',
+    imgPath: 'https://zmp-community.zdn.vn/community/28eb36400905e05bb914.jpg',
     description: (
       <>
         CabinJ is designed to be lightweight with minimal overhead,
@@ -24,7 +24,7 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: 'Simple & Intuitive',
-    imgPath: '/img/slide2.png',
+    imgPath: 'https://zmp-community.zdn.vn/community/82e99f42a00749591016.jpg',
     description: (
       <>
         Get started quickly with CabinJ's intuitive API. Clear conventions
@@ -35,7 +35,7 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: 'Highly Extensible',
-    imgPath :'/img/slide3.png',
+    imgPath:'https://zmp-community.zdn.vn/community/81929d39a27c4b22126d.jpg',
     description: (
       <>
         Extend and customize CabinJ to fit your needs. The modular architecture
