@@ -153,7 +153,6 @@ public class ServerBuilder {
                 maxPoolSize,
                 maxQueueCapacity,
                 timeout,
-                idleTimeoutMiles,
                 enableProfiler,
                 enableProfilerDashboard
         );
