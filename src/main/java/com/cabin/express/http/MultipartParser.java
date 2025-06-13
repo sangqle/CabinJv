@@ -1,6 +1,6 @@
 package com.cabin.express.http;
 
-import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.logger.CabinLogger;
 
 import java.io.*;
 import java.net.URLDecoder;

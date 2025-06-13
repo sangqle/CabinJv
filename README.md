@@ -47,7 +47,7 @@ See [BENCHMARK.md](BENCHMARK.md) for detailed performance benchmarks.
 
 - [**ConfigLoader**](src/main/java/com/cabin/express/config/ConfigLoader.java): Loads configuration properties from various sources
 - [**Environment**](src/main/java/com/cabin/express/config/Environment.java): Provides access to configuration values throughout the application
-- [**CabinLogger**](src/main/java/com/cabin/express/loggger/CabinLogger.java): Logging utilities for the framework
+- [**CabinLogger**](src/main/java/com/cabin/express/logger/CabinLogger.java): Logging utilities for the framework
 
 ## Framework Flow
 

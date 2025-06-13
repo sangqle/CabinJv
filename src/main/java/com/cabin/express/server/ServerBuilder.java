@@ -1,7 +1,7 @@
 package com.cabin.express.server;
 
-import com.cabin.express.loggger.CabinLogger;
-import com.cabin.express.loggger.LoggerConfig;
+import com.cabin.express.logger.CabinLogger;
+import com.cabin.express.logger.LoggerConfig;
 import com.cabin.express.middleware.LoggingMiddleware;
 import com.cabin.express.profiler.ServerProfiler;
 
@@ -153,7 +153,6 @@ public class ServerBuilder {
                 maxPoolSize,
                 maxQueueCapacity,
                 timeout,
-                idleTimeoutMiles,
                 enableProfiler,
                 enableProfilerDashboard
         );

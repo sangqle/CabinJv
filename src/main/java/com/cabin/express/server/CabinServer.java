@@ -6,7 +6,7 @@ import com.cabin.express.http.Response;
 import com.cabin.express.interfaces.Handler;
 import com.cabin.express.interfaces.Middleware;
 import com.cabin.express.interfaces.ServerLifecycleCallback;
-import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.logger.CabinLogger;
 import com.cabin.express.middleware.MiddlewareChain;
 import com.cabin.express.profiler.ServerProfiler;
 import com.cabin.express.profiler.reporting.DashboardReporter;
@@ -21,8 +21,6 @@ import java.nio.channels.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -33,15 +31,13 @@ public class CabinServer {
     private final Thread bossThread;
     private final Thread[] workerThreads;
     private int nextWorkerIndex = 0; // for round-robin
+    private final ByteBufferPool bufferPool;
 
-    // --- Router & Middleware stack ---
-    private final List<Router> routers = new ArrayList<>();
-    private final List<Middleware> globalMiddlewares = new ArrayList<>(); // not changed
+    // --- Middleware stack ---
     private final List<Middleware> middlewareStack = new ArrayList<>();
 
     // --- Connection tracking for timeouts ---
     private final Map<SocketChannel, Long> connectionLastActive = new ConcurrentHashMap<>();
-    private final Map<SocketChannel, ByteArrayOutputStream> clientBuffers = new ConcurrentHashMap<>();
 
     // --- Worker pools for business logic ---
     private final CabinWorkerPool readWorkerPool;
@@ -49,7 +45,6 @@ public class CabinServer {
 
     // --- Server config ---
     private final int port;
-    private final long connectionTimeoutMillis;
     private final long idleConnectionTimeoutMillis;
 
     // --- Profiler flags ---
@@ -66,13 +61,11 @@ public class CabinServer {
             int defaultPoolSize,
             int maxPoolSize,
             int maxQueueCapacity,
-            long connectionTimeoutMillis,
             long idleConnectionTimeoutSeconds,
             boolean profilerEnabled,
             boolean profilerDashboardEnabled
     ) {
         this.port = port;
-        this.connectionTimeoutMillis = connectionTimeoutMillis;
         this.idleConnectionTimeoutMillis = idleConnectionTimeoutSeconds * 1000L;
         this.readWorkerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
         this.writeWorkerPool = new CabinWorkerPool(defaultPoolSize, maxPoolSize, maxQueueCapacity);
@@ -81,7 +74,7 @@ public class CabinServer {
         this.profilerDashboardEnabled = profilerDashboardEnabled;
 
         // 1. Initialize bossSelector & workerSelectors
-        int workerCount = Runtime.getRuntime().availableProcessors(); // typical choice :contentReference[oaicite:6]{index=6}
+        int workerCount = Runtime.getRuntime().availableProcessors();
         this.workerSelectors = new Selector[workerCount];
         this.workerThreads = new Thread[workerCount];
 
@@ -91,6 +84,9 @@ public class CabinServer {
             int idx = i;
             this.workerThreads[i] = new Thread(() -> runWorkerLoop(idx), "CabinServer-Worker-" + idx);
         }
+
+        // 3. Initialize ByteBufferPool
+        this.bufferPool = new ByteBufferPool(8192, 100, 10);
     }
 
     // Set profiler flags
@@ -157,7 +153,6 @@ public class CabinServer {
                 if (callback != null) {
                     callback.onServerInitialized(port);
                 }
-                CabinLogger.info("Server started on port " + port);
 
                 if (profilerEnabled) {
                     ServerProfiler.INSTANCE.setEnabled(true);
@@ -198,7 +193,7 @@ public class CabinServer {
      **/
     private void initializeServer() throws IOException {
         // 1. Open boss selector
-        bossSelector = Selector.open();                                               // :contentReference[oaicite:7]{index=7}
+        bossSelector = Selector.open();
 
         // 2. Open worker selectors
         for (int i = 0; i < workerSelectors.length; i++) {
@@ -207,7 +202,7 @@ public class CabinServer {
 
         // 3. Create nonblocking ServerSocketChannel
         ServerSocketChannel serverChannel = ServerSocketChannel.open();
-        serverChannel.bind(new InetSocketAddress("0.0.0.0", port));                   // :contentReference[oaicite:8]{index=8}
+        serverChannel.bind(new InetSocketAddress("0.0.0.0", port));
         serverChannel.configureBlocking(false);
 
         // 4. Register serverChannel with bossSelector for OP_ACCEPT
@@ -232,7 +227,7 @@ public class CabinServer {
 
                     if (key.isAcceptable()) {
                         ServerSocketChannel serverChannel = (ServerSocketChannel) key.channel();
-                        SocketChannel clientChannel = serverChannel.accept();           // :contentReference[oaicite:9]{index=9}
+                        SocketChannel clientChannel = serverChannel.accept();
                         if (clientChannel != null) {
                             clientChannel.configureBlocking(false);
                             // Round‐robin assignment to a worker selector
@@ -269,8 +264,6 @@ public class CabinServer {
      **/
     private void runWorkerLoop(int index) {
         Selector workerSelector = workerSelectors[index];
-        ByteBuffer readBuffer = ByteBuffer.allocateDirect(32 * 1024); // 32KB per worker :contentReference[oaicite:10]{index=10}
-
         try {
             while (isRunning) {
                 int nReady = workerSelector.select(500);
@@ -324,40 +317,48 @@ public class CabinServer {
      * Read handler submitted to readWorkerPool
      **/
     private void handleRead(SocketChannel clientChannel, ClientContext context, Selector workerSelector) {
+        ByteBuffer buffer = null;
         try {
-            ByteBuffer buffer = ByteBuffer.allocate(8192);
+            // Acquire buffer from pool
+            buffer = bufferPool.acquire();
+
             int bytesRead = clientChannel.read(buffer);
-            if (bytesRead > 0) {
-                buffer.flip();
+            if(bytesRead > 0) {
+                buffer.flip(); // Prepare buffer for reading
                 byte[] data = new byte[buffer.remaining()];
                 buffer.get(data);
                 context.requestBuffer.write(data);
                 connectionLastActive.put(clientChannel, System.currentTimeMillis());
 
-                if (isRequestComplete(context.requestBuffer.toByteArray())) {
+                if(isRequestComplete(context.requestBuffer.toByteArray())) {
                     // Process the HTTP request
                     processHttpRequest(clientChannel, context);
                 } else {
-                    // Not complete yet: re‐enable read interest
+                    // Not complete yet, re-enable read interest
                     workerSelector.wakeup();
                     SelectionKey key = clientChannel.keyFor(workerSelector);
-                    if (key != null && key.isValid()) {
+                    if(key != null && key.isValid()) {
                         key.interestOps(key.interestOps() | SelectionKey.OP_READ);
                     }
                 }
-            } else if (bytesRead < 0) {
+            } else if(bytesRead < 0) {
                 closeConnection(clientChannel, workerSelector);
             } else {
-                // bytesRead == 0: re‐enable read interest
+                // No data read, re-enable read interest
                 workerSelector.wakeup();
                 SelectionKey key = clientChannel.keyFor(workerSelector);
-                if (key != null && key.isValid()) {
+                if(key != null && key.isValid()) {
                     key.interestOps(key.interestOps() | SelectionKey.OP_READ);
                 }
             }
         } catch (IOException e) {
             CabinLogger.error("Error reading from client: " + e.getMessage(), e);
             closeConnection(clientChannel, workerSelector);
+        } finally {
+            // Always return buffer to pool
+            if (buffer != null) {
+                bufferPool.release(buffer);
+            }
         }
     }
 
@@ -472,7 +473,6 @@ public class CabinServer {
             SelectionKey key = channel.keyFor(selector);
             if (key != null) key.cancel();
             connectionLastActive.remove(channel);
-            clientBuffers.remove(channel);
             if (channel.isOpen()) {
                 channel.close();
             }
@@ -572,7 +572,6 @@ public class CabinServer {
             }
         }
         connectionLastActive.clear();
-        clientBuffers.clear();
 
         // Shutdown worker pools
         try {

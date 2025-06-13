@@ -3,7 +3,7 @@ package com.cabin.express.debug;
 import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
 import com.cabin.express.interfaces.Middleware;
-import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.logger.CabinLogger;
 import com.cabin.express.middleware.MiddlewareChain;
 
 import java.io.IOException;

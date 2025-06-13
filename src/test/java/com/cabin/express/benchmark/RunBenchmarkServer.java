@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
  * Use this to start the benchmark server for manual testing
  */
 public class RunBenchmarkServer {
-    @Test
     public void startBenchmarkServer() throws IOException {
         System.err.println("Starting BenchmarkServer...");
         BenchmarkServer.startBenchmarkServer();

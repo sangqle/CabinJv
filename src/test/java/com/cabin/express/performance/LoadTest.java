@@ -3,7 +3,7 @@ package com.cabin.express.performance;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import com.cabin.express.debug.ThreadSafetyDebugMiddleware;
-import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.logger.CabinLogger;
 import com.cabin.express.router.Router;
 import com.cabin.express.server.CabinServer;
 import com.cabin.express.server.ServerBuilder;

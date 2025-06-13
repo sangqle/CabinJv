@@ -4,7 +4,7 @@ import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
 import com.cabin.express.interfaces.Middleware;
 import com.cabin.express.interfaces.ServerLifecycleCallback;
-import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.logger.CabinLogger;
 import com.cabin.express.middleware.MiddlewareChain;
 import com.cabin.express.router.Router;
 import com.cabin.express.server.CabinServer;
@@ -12,7 +12,6 @@ import com.cabin.express.server.ServerBuilder;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 
 class ServerCallBack implements ServerLifecycleCallback {
     @Override

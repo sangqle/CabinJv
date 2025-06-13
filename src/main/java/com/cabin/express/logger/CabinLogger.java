@@ -1,4 +1,4 @@
-package com.cabin.express.loggger;
+package com.cabin.express.logger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

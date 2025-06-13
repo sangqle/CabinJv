@@ -1,7 +1,7 @@
 package com.cabin.express.exception;
 
 import com.cabin.express.http.Response;
-import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.logger.CabinLogger;
 
 public class GlobalExceptionHandler {
     public static void handleException(Throwable e, Response response) {

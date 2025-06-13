@@ -1,6 +1,6 @@
 package com.cabin.express.profiler.alert;
 
-import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.logger.CabinLogger;
 import com.cabin.express.profiler.ServerProfiler;
 
 import java.util.ArrayList;

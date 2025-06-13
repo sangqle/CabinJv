@@ -1,4 +1,4 @@
-package com.cabin.express.loggger;
+package com.cabin.express.logger;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;

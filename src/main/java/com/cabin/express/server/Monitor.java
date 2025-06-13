@@ -1,6 +1,6 @@
 package com.cabin.express.server;
 
-import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.logger.CabinLogger;
 import com.cabin.express.worker.CabinWorkerPool;
 import com.sun.management.OperatingSystemMXBean;
 
