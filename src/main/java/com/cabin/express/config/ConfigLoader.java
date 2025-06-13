@@ -1,6 +1,6 @@
 package com.cabin.express.config;
 
-import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.logger.CabinLogger;
 
 import java.io.IOException;
 import java.io.InputStream;

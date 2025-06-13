@@ -1,6 +1,6 @@
 package com.cabin.express.profiler;
 
-import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.logger.CabinLogger;
 import com.cabin.express.profiler.metrics.*;
 import com.cabin.express.profiler.reporting.LogReporter;
 import com.cabin.express.profiler.reporting.MetricsReporter;

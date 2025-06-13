@@ -1,6 +1,6 @@
 package com.cabin.express.debug;
 
-import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.logger.CabinLogger;
 
 import java.util.HashMap;
 import java.util.Set;

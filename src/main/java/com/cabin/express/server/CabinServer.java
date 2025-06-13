@@ -6,7 +6,7 @@ import com.cabin.express.http.Response;
 import com.cabin.express.interfaces.Handler;
 import com.cabin.express.interfaces.Middleware;
 import com.cabin.express.interfaces.ServerLifecycleCallback;
-import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.logger.CabinLogger;
 import com.cabin.express.middleware.MiddlewareChain;
 import com.cabin.express.profiler.ServerProfiler;
 import com.cabin.express.profiler.reporting.DashboardReporter;

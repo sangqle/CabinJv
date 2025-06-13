@@ -1,6 +1,6 @@
 package com.cabin.express.profiler.metrics;
 
-import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.logger.CabinLogger;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;

@@ -1,4 +1,4 @@
-package com.cabin.express.loggger;
+package com.cabin.express.logger;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;

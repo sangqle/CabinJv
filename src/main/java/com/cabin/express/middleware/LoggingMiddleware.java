@@ -3,8 +3,8 @@ package com.cabin.express.middleware;
 import com.cabin.express.http.Request;
 import com.cabin.express.http.Response;
 import com.cabin.express.interfaces.Middleware;
-import com.cabin.express.loggger.CabinLogger;
-import com.cabin.express.loggger.CabinLogger.LoggerInstance;
+import com.cabin.express.logger.CabinLogger;
+import com.cabin.express.logger.CabinLogger.LoggerInstance;
 
 import java.io.IOException;
 import java.util.UUID;

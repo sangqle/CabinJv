@@ -5,7 +5,7 @@ import com.cabin.express.http.Response;
 import com.cabin.express.interfaces.Handler;
 import com.cabin.express.interfaces.Middleware;
 import com.cabin.express.middleware.MiddlewareChain;
-import com.cabin.express.loggger.CabinLogger;
+import com.cabin.express.logger.CabinLogger;
 
 import java.io.IOException;
 import java.util.*;
