@@ -21,8 +21,6 @@ import java.nio.channels.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -34,9 +32,7 @@ public class CabinServer {
     private final Thread[] workerThreads;
     private int nextWorkerIndex = 0; // for round-robin
 
-    // --- Router & Middleware stack ---
-    private final List<Router> routers = new ArrayList<>();
-    private final List<Middleware> globalMiddlewares = new ArrayList<>(); // not changed
+    // --- Middleware stack ---
     private final List<Middleware> middlewareStack = new ArrayList<>();
 
     // --- Connection tracking for timeouts ---
@@ -81,7 +77,7 @@ public class CabinServer {
         this.profilerDashboardEnabled = profilerDashboardEnabled;
 
         // 1. Initialize bossSelector & workerSelectors
-        int workerCount = Runtime.getRuntime().availableProcessors(); // typical choice :contentReference[oaicite:6]{index=6}
+        int workerCount = Runtime.getRuntime().availableProcessors();
         this.workerSelectors = new Selector[workerCount];
         this.workerThreads = new Thread[workerCount];
 
@@ -157,7 +153,6 @@ public class CabinServer {
                 if (callback != null) {
                     callback.onServerInitialized(port);
                 }
-                CabinLogger.info("Server started on port " + port);
 
                 if (profilerEnabled) {
                     ServerProfiler.INSTANCE.setEnabled(true);
@@ -198,7 +193,7 @@ public class CabinServer {
      **/
     private void initializeServer() throws IOException {
         // 1. Open boss selector
-        bossSelector = Selector.open();                                               // :contentReference[oaicite:7]{index=7}
+        bossSelector = Selector.open();
 
         // 2. Open worker selectors
         for (int i = 0; i < workerSelectors.length; i++) {
@@ -207,7 +202,7 @@ public class CabinServer {
 
         // 3. Create nonblocking ServerSocketChannel
         ServerSocketChannel serverChannel = ServerSocketChannel.open();
-        serverChannel.bind(new InetSocketAddress("0.0.0.0", port));                   // :contentReference[oaicite:8]{index=8}
+        serverChannel.bind(new InetSocketAddress("0.0.0.0", port));
         serverChannel.configureBlocking(false);
 
         // 4. Register serverChannel with bossSelector for OP_ACCEPT
@@ -232,7 +227,7 @@ public class CabinServer {
 
                     if (key.isAcceptable()) {
                         ServerSocketChannel serverChannel = (ServerSocketChannel) key.channel();
-                        SocketChannel clientChannel = serverChannel.accept();           // :contentReference[oaicite:9]{index=9}
+                        SocketChannel clientChannel = serverChannel.accept();
                         if (clientChannel != null) {
                             clientChannel.configureBlocking(false);
                             // Round‐robin assignment to a worker selector
@@ -269,7 +264,7 @@ public class CabinServer {
      **/
     private void runWorkerLoop(int index) {
         Selector workerSelector = workerSelectors[index];
-        ByteBuffer readBuffer = ByteBuffer.allocateDirect(32 * 1024); // 32KB per worker :contentReference[oaicite:10]{index=10}
+        ByteBuffer readBuffer = ByteBuffer.allocateDirect(32 * 1024); // 32KB per worker
 
         try {
             while (isRunning) {
