@@ -5,19 +5,210 @@
 
 .heroBanner {
   padding: 4rem 0;
-  text-align: center;
+  text-align: left;
   position: relative;
   overflow: hidden;
+  /* background: linear-gradient(135deg, #1a365d 0%, #2563eb 100%); */
+  /* color: linear-gradient(135deg, #1a365d 0%, #2563eb 100%); */
 }
 
-@media screen and (max-width: 996px) {
-  .heroBanner {
-    padding: 2rem;
+.heroContent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.heroText {
+  max-width: 600px;
+}
+
+.heroGraphic {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  /*
+  Hidden for mobile view
+  */
+  @media screen and (max-width: 966px) {
+    display: none;
   }
 }
 
-.buttons {
+.heroGraphic img {
+  max-width: 100%;
+  height: auto;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+}
+
+.heroTagline {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.heroSubtitle {
+  font-size: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.heroButtons {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.primaryButton {
+  display: inline-block;
+  background-color: white;
+  color: #2563eb;
+  font-weight: bold;
+  padding: 0.8rem 1.5rem;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.primaryButton:hover {
+  background-color: #f8fafc;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+  text-decoration: none;
+}
+
+.secondaryButton {
+  display: inline-block;
+  background-color: transparent;
+  color: white;
+  font-weight: bold;
+  padding: 0.8rem 1.5rem;
+  border-radius: 4px;
+  text-decoration: none;
+  border: 1px solid white;
+  transition: all 0.3s ease;
+}
+
+.secondaryButton:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+  text-decoration: none;
+}
+
+/* Code showcase section */
+.codeShowcase {
+  padding: 4rem 0;
+  background-color: #f8fafc;
+}
+
+[data-theme='dark'] .codeShowcase {
+  background-color: #18181b;
+}
+
+.codeBlock {
+  background-color: #1e293b;
+  color: #e2e8f0;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: auto;
+  max-height: 300px;
+}
+
+/* Testimonials section */
+.testimonials {
+  padding: 4rem 0;
+  background-color: white;
+}
+
+.sectionTitle {
+  text-align: center;
+  margin-bottom: 2.5rem;
+  color: #1a365d;
+}
+
+.testimonialCard {
+  background-color: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  height: 100%;
+  position: relative;
+  border-top: 4px solid #2563eb;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.testimonialCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.testimonialCard p {
+  font-style: italic;
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.testimonialCard::before {
+  content: '"';
+  position: absolute;
+  top: -10px;
+  left: 20px;
+  font-size: 4rem;
+  color: #e5e7eb;
+  font-family: serif;
+  z-index: 0;
+}
+
+.testimonialAuthor {
+  display: flex;
+  flex-direction: column;
+  margin-top: auto;
+}
+
+.testimonialAuthor strong {
+  color: #1a365d;
+}
+
+.testimonialAuthor span {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+/* Call to action section */
+.callToAction {
+  padding: 4rem 0;
+  text-align: center;
+  /* background: linear-gradient(135deg, #1a365d 0%, #2563eb 100%); */
+}
+
+.callToAction h2 {
+  margin-bottom: 1rem;
+}
+
+.callToAction p {
+  margin-bottom: 2rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 966px) {
+  .heroContent {
+    flex-direction: column;
+  }
+  
+  .heroGraphic {
+    margin-top: 2rem;
+    order: -1;
+  }
+  
+  .heroText {
+    text-align: center;
+  }
+  
+  .heroButtons {
+    justify-content: center;
+  }
 }

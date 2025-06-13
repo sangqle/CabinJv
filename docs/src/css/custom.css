@@ -6,31 +6,31 @@
 
 /* You can override the default Infima variables here. */
 :root {
-  /* Primary = Java Orange */
-  --ifm-color-primary:        #ED8B00; /* Java Orange */
-  --ifm-color-primary-dark:   #BD6F00; /* –20% brightness */
-  --ifm-color-primary-darker: #9A5A00; /* –35% brightness */
-  --ifm-color-primary-darkest: #764500; /* –50% brightness */
+  /* Primary = Java Blue */
+  --ifm-color-primary:        #3572A5; /* Java Duke Blue */
+  --ifm-color-primary-dark:   #28557A; /* –20% brightness */
+  --ifm-color-primary-darker: #1E3A56; /* –35% brightness */
+  --ifm-color-primary-darkest:#14263A; /* –50% brightness */
 
-  --ifm-color-primary-light:   #FF9C11; /* +15% brightness */
-  --ifm-color-primary-lighter: #FFB040; /* +35% brightness */
-  --ifm-color-primary-lightest:#FFC87C; /* +60% brightness */
+  --ifm-color-primary-light:   #4F8DC6; /* +15% brightness */
+  --ifm-color-primary-lighter: #7CB3E5; /* +35% brightness */
+  --ifm-color-primary-lightest:#B3D6F2; /* +60% brightness */
 
   --ifm-code-font-size: 95%;
-  --docusaurus-highlighted-code-line-bg: rgba(237, 139, 0, 0.1);
+  --docusaurus-highlighted-code-line-bg: rgba(53, 114, 165, 0.08);
 }
 
 /* For readability concerns, you should choose a lighter palette in dark mode. */
 [data-theme='dark'] {
-  /* Lightened Java Orange for dark backgrounds */
-  --ifm-color-primary:        #FFBF64; /* +50% lightness */
-  --ifm-color-primary-dark:   #FFB040; /* +35% lightness */
-  --ifm-color-primary-darker: #FF9C11; /* +15% lightness */
-  --ifm-color-primary-darkest: #ED8B00; /* base */
+  /* Lightened Java Blue for dark backgrounds */
+  --ifm-color-primary:        #7CB3E5; /* +35% lightness */
+  --ifm-color-primary-dark:   #4F8DC6; /* +15% lightness */
+  --ifm-color-primary-darker: #3572A5; /* base */
+  --ifm-color-primary-darkest:#1E3A56; /* –35% brightness */
 
-  --ifm-color-primary-light:   #FFC87C; /* +60% lightness */
-  --ifm-color-primary-lighter: #FEDCAB; /* +80% lightness */
-  --ifm-color-primary-lightest:#FEE6C3; /* +90% lightness */
+  --ifm-color-primary-light:   #B3D6F2; /* +60% lightness */
+  --ifm-color-primary-lighter: #D6EAF8; /* +80% lightness */
+  --ifm-color-primary-lightest:#EAF4FB; /* +90% lightness */
 
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+  --docusaurus-highlighted-code-line-bg: rgba(53, 114, 165, 0.15);
 }

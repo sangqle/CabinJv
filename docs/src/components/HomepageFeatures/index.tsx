@@ -5,52 +5,58 @@ import styles from './styles.module.css';
 
 type FeatureItem = {
   title: string;
-  Svg: React.ComponentType<React.ComponentProps<'svg'>>;
+  imgPath: string;
   description: ReactNode;
+  iconBackground: string;
 };
 
 const FeatureList: FeatureItem[] = [
   {
     title: 'Lightweight & Efficient',
-    Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
+    imgPath: 'https://zmp-community.zdn.vn/community/28eb36400905e05bb914.jpg',
     description: (
       <>
         CabinJ is designed to be lightweight with minimal overhead,
         making your Java applications faster and more resource-efficient.
       </>
     ),
+    iconBackground: 'linear-gradient(135deg, #06b6d4 0%, #0ea5e9 100%)'
   },
   {
     title: 'Simple & Intuitive',
-    Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
+    imgPath: 'https://zmp-community.zdn.vn/community/82e99f42a00749591016.jpg',
     description: (
       <>
         Get started quickly with CabinJ's intuitive API. Clear conventions
         and straightforward patterns make development a breeze.
       </>
     ),
+    iconBackground: 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
   },
   {
     title: 'Highly Extensible',
-    Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
+    imgPath:'https://zmp-community.zdn.vn/community/81929d39a27c4b22126d.jpg',
     description: (
       <>
         Extend and customize CabinJ to fit your needs. The modular architecture
         allows you to use only what you need while adding your own components.
       </>
     ),
+    iconBackground: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)'
   },
 ];
 
-function Feature({title, Svg, description}: FeatureItem) {
+function Feature({title, imgPath, description, iconBackground}: FeatureItem) {
   return (
-    <div className={clsx('col col--4')}>
-      {/* <div className="text--center">
-        <Svg className={styles.featureSvg} role="img" />
-      </div> */}
-      <div className="text--center padding-horiz--md">
-        <Heading as="h3">{title}</Heading>
-        <p>{description}</p>
+    <div className={clsx('col col--4', styles.featureColumn)}>
+      <div className={styles.featureCard}>
+        <div className={styles.featureIconContainer} style={{background: iconBackground}}>
+          <img src={imgPath} role="img" />
+        </div>
+        <div className={styles.featureContent}>
+          <Heading as="h3" className={styles.featureTitle}>{title}</Heading>
+          <p className={styles.featureDescription}>{description}</p>
+        </div>
       </div>
     </div>
   );
@@ -60,6 +66,7 @@ export default function HomepageFeatures(): ReactNode {
   return (
     <section className={styles.features}>
       <div className="container">
+        <Heading as="h2" className={styles.featuresTitle}>Why Choose CabinJ?</Heading>
         <div className="row">
           {FeatureList.map((props, idx) => (
             <Feature key={idx} {...props} />

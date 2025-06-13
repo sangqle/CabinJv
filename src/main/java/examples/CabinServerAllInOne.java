@@ -25,8 +25,7 @@ public class CabinServerAllInOne {
         Router router = new Router();
 
         router.get("/hello", (req, res) -> {
-            res.writeBody("Hello, World!");
-            res.send();
+            throw new RuntimeException("This is a test exception to demonstrate error handling.");
         });
 
 
