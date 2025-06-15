@@ -193,12 +193,15 @@ public class CabinServer {
      * Core initialization: open selectors and bind server socket
      **/
     private void initializeServer() throws IOException {
+        CabinLogger.info("Initializing server...");
         // 1. Open boss selector
         bossSelector = Selector.open();
+        CabinLogger.info("Boss selector opened: " + bossSelector.isOpen());
 
         // 2. Open worker selectors
         for (int i = 0; i < workerSelectors.length; i++) {
             workerSelectors[i] = Selector.open();
+            CabinLogger.info("Worker selector " + i + " opened: " + workerSelectors[i].isOpen());
         }
 
         // 3. Create nonblocking ServerSocketChannel
@@ -206,18 +209,33 @@ public class CabinServer {
         serverChannel.bind(new InetSocketAddress("0.0.0.0", port));
         serverChannel.configureBlocking(false);
 
+        CabinLogger.info("Server channel bound to port " + port);
+        CabinLogger.info("Server channel is open: " + serverChannel.isOpen());
+        CabinLogger.info("Server channel is blocking: " + serverChannel.isBlocking());
+
         // 4. Register serverChannel with bossSelector for OP_ACCEPT
-        serverChannel.register(bossSelector, SelectionKey.OP_ACCEPT);
+        SelectionKey serverKey = serverChannel.register(bossSelector, SelectionKey.OP_ACCEPT);
+        CabinLogger.info("Server channel registered with boss selector");
+        CabinLogger.info("Server key is valid: " + serverKey.isValid());
+        CabinLogger.info("Server key interest ops: " + serverKey.interestOps());
+        CabinLogger.info("OP_ACCEPT value: " + SelectionKey.OP_ACCEPT);
     }
 
     /**
      * The “boss” loop only handles OP_ACCEPT and dispatches to worker selectors
      **/
     private void runBossLoop() {
+        CabinLogger.info("Boss loop starting...");
         try {
             while (isRunning) {
                 // 1. Block until at least one accept‐ready event or timeout
-                bossSelector.select(500);
+                int readyKeys = bossSelector.select(500);
+
+                // Handle idle connections cleanup periodically
+                if (readyKeys == 0) {
+                    closeIdleConnections();
+                    continue;
+                }
 
                 // Prevent the loop from running if the server is stopped
                 if(!bossSelector.isOpen()) {
@@ -243,20 +261,18 @@ public class CabinServer {
                             Selector targetSelector = findAvailableWorkerSelector();
 
                             if (targetSelector == null) {
-                                // No available worker selectors, close the client connection
-                                CabinLogger.warn("No available worker selectors, closing client connection");
-                                try {
-                                    clientChannel.close();
-                                } catch (IOException e) {
-                                    CabinLogger.error("Error closing client channel: " + e.getMessage(), e);
-                                }
+                                // No available worker selectors, fallback to boss selector
+                                CabinLogger.warn("No available worker selectors, using boss selector as fallback");
                                 continue;
                             }
 
-                            // Register clientChannel with the selected worker selector for OP_READ
-                            targetSelector.wakeup(); // wake up worker’s select if blocked
+                            // Create a new ClientContext for this connection
                             ClientContext ctx = new ClientContext();
                             ctx.selector = targetSelector;
+
+                            // Register clientChannel with the selected worker selector for OP_READ
+                            targetSelector.wakeup(); // wake up worker’s select if blocked
+
                             ctx.selectionKey = clientChannel.register(targetSelector, SelectionKey.OP_READ, ctx);
 
                             // Track last active time for timeouts
