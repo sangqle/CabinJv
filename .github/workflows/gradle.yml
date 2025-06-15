@@ -28,7 +28,7 @@ jobs:
       - name: Build with Gradle
         run: gradle build
 
-      - name: Run tests
+      - name: Run TESTs
         run: gradle test
 
       - name: Upload test reports
