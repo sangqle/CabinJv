@@ -55,6 +55,9 @@ public class CabinServer {
     // --- Lifecycle flags ---
     private volatile boolean isRunning = false;
     private volatile boolean isStopped = false;
+    private volatile boolean isShuttingDown = false;
+    private final AtomicInteger activeConnections = new AtomicInteger(0);
+    private final AtomicInteger activeRequests = new AtomicInteger(0);
 
     // Constructor
     protected CabinServer(
@@ -251,11 +254,14 @@ public class CabinServer {
                     iter.remove();
                     if (!key.isValid()) continue;
 
-                    if (key.isAcceptable()) {
+                    if (key.isAcceptable() && !isShuttingDown) {
                         ServerSocketChannel serverChannel = (ServerSocketChannel) key.channel();
                         SocketChannel clientChannel = serverChannel.accept();
                         if (clientChannel != null) {
                             clientChannel.configureBlocking(false);
+
+                            // Track new connections
+                            activeConnections.incrementAndGet();
 
                             // Find an available worker selector
                             Selector targetSelector = findAvailableWorkerSelector();
@@ -458,6 +464,7 @@ public class CabinServer {
      * Processes an HTTP request (parsing headers/body, invoking router)
      **/
     private void processHttpRequest(SocketChannel clientChannel, ClientContext context) {
+        activeRequests.incrementAndGet();
         try {
             byte[] requestData = context.requestBuffer.toByteArray();
             Request request = new Request(requestData);
@@ -503,6 +510,8 @@ public class CabinServer {
             CabinLogger.error("Unhandled error: " + t.getMessage(), t);
             GlobalExceptionHandler.handleException(t, new Response(clientChannel));
             sendInternalServerError(clientChannel, workerSelectors[nextWorkerIndex.get()]);
+        } finally {
+            activeRequests.decrementAndGet();
         }
     }
 
@@ -651,23 +660,52 @@ public class CabinServer {
 
     /**
      * Stops server gracefully within timeoutMillis
+     * First stops accepting new connections, then waits for active requests to complete
      **/
     public boolean stop(long timeoutMillis) {
-        CabinLogger.info("Stop signal received. Shutting down server...");
+        CabinLogger.info("Stop signal received. Initiating graceful shutdown...");
         long start = System.currentTimeMillis();
+
+        // Phase 1: Stop accepting new connections
+        isShuttingDown = true;
+        closeServerSocketChannel();
+
+        CabinLogger.info("Server stopped accepting new connections. Active connections: " +
+                activeConnections.get() + ", Active requests: " + activeRequests.get());
+
+        // Phase 2: Wait for active requests to complete
+        long gracefulShutdownTimeout = Math.min(timeoutMillis / 2, 30000); // Max 30 seconds for graceful
+        if (!waitForActiveRequestsToComplete(gracefulShutdownTimeout)) {
+            CabinLogger.warn("Graceful shutdown timeout reached. Proceeding with forced shutdown.");
+        }
+
+
+        // Phase 3: Force shutdown remaining resources
         shutdown(); // sets isRunning=false and wakes selectors
 
-        // Wait for threads to end
+        // Phase 4: Wait for threads to end
         long deadline = start + timeoutMillis;
         try {
-            bossThread.join(Math.max(0, deadline - System.currentTimeMillis()));
+            long remainingTime = Math.max(0, deadline - System.currentTimeMillis());
+            if (remainingTime > 0) {
+                bossThread.join(remainingTime);
+            }
+
             for (Thread wt : workerThreads) {
-                wt.join(Math.max(0, deadline - System.currentTimeMillis()));
+                remainingTime = Math.max(0, deadline - System.currentTimeMillis());
+                if (remainingTime > 0) {
+                    wt.join(remainingTime);
+                }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             CabinLogger.error("Interrupted while stopping server", e);
         }
+
+        CabinLogger.info("Server shutdown completed. Final state - stopped: " + isStopped +
+                ", active connections: " + activeConnections.get() +
+                ", active requests: " + activeRequests.get());
+
         return isStopped;
     }
 
@@ -708,5 +746,68 @@ public class CabinServer {
         void clearPendingResponse() {
             pendingResponse = null;
         }
+    }
+
+    /**
+     * Closes the server socket channel to stop accepting new connections
+     */
+    private void closeServerSocketChannel() {
+        try {
+            if (bossSelector != null && bossSelector.isOpen()) {
+                // Find and close the server socket channel
+                for (SelectionKey key : bossSelector.keys()) {
+                    if (key.channel() instanceof ServerSocketChannel) {
+                        ServerSocketChannel serverChannel = (ServerSocketChannel) key.channel();
+                        key.cancel();
+                        serverChannel.close();
+                        CabinLogger.info("Server socket channel closed");
+                        break;
+                    }
+                }
+            }
+        } catch (IOException e) {
+            CabinLogger.error("Error closing server socket channel: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Waits for active requests to complete within the specified timeout
+     */
+    private boolean waitForActiveRequestsToComplete(long timeoutMillis) {
+        long start = System.currentTimeMillis();
+        long deadline = start + timeoutMillis;
+
+        CabinLogger.info("Waiting for active requests to complete...");
+
+        while (System.currentTimeMillis() < deadline) {
+            int activeReqs = activeRequests.get();
+            int activeConns = activeConnections.get();
+
+            // Check if all requests are completed
+            if (activeReqs == 0) {
+                CabinLogger.info("All active requests completed successfully");
+                return true;
+            }
+
+            // Log progress every 5 seconds
+            if ((System.currentTimeMillis() - start) % 5000 < 100) {
+                CabinLogger.info("Still waiting... Active requests: " + activeReqs +
+                        ", Active connections: " + activeConns +
+                        ", Read pool active: " + readWorkerPool.getActiveThreads() +
+                        ", Write pool active: " + writeWorkerPool.getActiveThreads());
+            }
+
+            try {
+                Thread.sleep(100); // Check every 100ms
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                CabinLogger.warn("Interrupted while waiting for requests to complete");
+                return false;
+            }
+        }
+
+        CabinLogger.warn("Timeout waiting for active requests to complete. " +
+                "Active requests: " + activeRequests.get());
+        return false;
     }
 }
