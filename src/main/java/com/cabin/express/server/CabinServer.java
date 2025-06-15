@@ -238,15 +238,27 @@ public class CabinServer {
                         SocketChannel clientChannel = serverChannel.accept();
                         if (clientChannel != null) {
                             clientChannel.configureBlocking(false);
-                            // Round‐robin assignment to a worker selector
-                            int workerIdx = nextWorkerIndex.getAndUpdate(i -> (i + 1) % workerSelectors.length);
+
+                            // Find an available worker selector
+                            Selector targetSelector = findAvailableWorkerSelector();
+
+                            if (targetSelector == null) {
+                                // No available worker selectors, close the client connection
+                                CabinLogger.warn("No available worker selectors, closing client connection");
+                                try {
+                                    clientChannel.close();
+                                } catch (IOException e) {
+                                    CabinLogger.error("Error closing client channel: " + e.getMessage(), e);
+                                }
+                                continue;
+                            }
 
                             // Register clientChannel with the selected worker selector for OP_READ
-                            Selector targetSelector = workerSelectors[workerIdx];
                             targetSelector.wakeup(); // wake up worker’s select if blocked
                             ClientContext ctx = new ClientContext();
                             ctx.selector = targetSelector;
                             ctx.selectionKey = clientChannel.register(targetSelector, SelectionKey.OP_READ, ctx);
+
                             // Track last active time for timeouts
                             connectionLastActive.put(clientChannel, System.currentTimeMillis());
                         }
@@ -262,6 +274,32 @@ public class CabinServer {
             }
             isStopped = true;
         }
+    }
+
+    /**
+     * Finds an available (open) worker selector using round-robin with fallback
+     * @return An open worker selector, or null if none are available
+     */
+    private Selector findAvailableWorkerSelector() {
+        int startIdx = nextWorkerIndex.getAndUpdate(i -> (i + 1) % workerSelectors.length);
+
+        // First, try the next selector in round-robin order
+        if (workerSelectors[startIdx] != null && workerSelectors[startIdx].isOpen()) {
+            return workerSelectors[startIdx];
+        }
+
+        // If the round-robin selector is closed, search for any available selector
+        for (int i = 0; i < workerSelectors.length; i++) {
+            int idx = (startIdx + i) % workerSelectors.length;
+            if (workerSelectors[idx] != null && workerSelectors[idx].isOpen()) {
+                // Update the round-robin counter to this working selector for next time
+                nextWorkerIndex.set(idx);
+                return workerSelectors[idx];
+            }
+        }
+
+        // No available selectors found
+        return null;
     }
 
     /**
