@@ -21,6 +21,7 @@ import java.nio.channels.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -30,8 +31,8 @@ public class CabinServer {
     private final Selector[] workerSelectors;
     private final Thread bossThread;
     private final Thread[] workerThreads;
-    private int nextWorkerIndex = 0; // for round-robin
     private final ByteBufferPool bufferPool;
+    private final AtomicInteger nextWorkerIndex = new AtomicInteger(0);
 
     // --- Middleware stack ---
     private final List<Middleware> middlewareStack = new ArrayList<>();
@@ -218,10 +219,17 @@ public class CabinServer {
                 // 1. Block until at least one accept‐ready event or timeout
                 bossSelector.select(500);
 
+                // Prevent the loop from running if the server is stopped
+                if(!bossSelector.isOpen()) {
+                    CabinLogger.warn("Boss selector is closed, exiting loop");
+                    break;
+                }
+
                 Set<SelectionKey> keys = bossSelector.selectedKeys();
                 Iterator<SelectionKey> iter = keys.iterator();
                 while (iter.hasNext()) {
                     SelectionKey key = iter.next();
+                    // Remove key from set to prevent reprocessing
                     iter.remove();
                     if (!key.isValid()) continue;
 
@@ -231,17 +239,14 @@ public class CabinServer {
                         if (clientChannel != null) {
                             clientChannel.configureBlocking(false);
                             // Round‐robin assignment to a worker selector
-                            int workerIdx = nextWorkerIndex;
-                            nextWorkerIndex = (nextWorkerIndex + 1) % workerSelectors.length;
+                            int workerIdx = nextWorkerIndex.getAndUpdate(i -> (i + 1) % workerSelectors.length);
 
                             // Register clientChannel with the selected worker selector for OP_READ
                             Selector targetSelector = workerSelectors[workerIdx];
                             targetSelector.wakeup(); // wake up worker’s select if blocked
                             ClientContext ctx = new ClientContext();
                             ctx.selector = targetSelector;
-                            SelectionKey selectionKey = clientChannel.register(targetSelector, SelectionKey.OP_READ, ctx);
-                            ctx.selectionKey = selectionKey;
-                            clientChannel.register(targetSelector, SelectionKey.OP_READ, ctx);
+                            ctx.selectionKey = clientChannel.register(targetSelector, SelectionKey.OP_READ, ctx);
                             // Track last active time for timeouts
                             connectionLastActive.put(clientChannel, System.currentTimeMillis());
                         }
@@ -439,11 +444,11 @@ public class CabinServer {
             context.requestBuffer.reset();
         } catch (IOException e) {
             CabinLogger.error("Error processing request: " + e.getMessage(), e);
-            sendInternalServerError(clientChannel, workerSelectors[nextWorkerIndex]);
+            sendInternalServerError(clientChannel, workerSelectors[nextWorkerIndex.get()]);
         } catch (Throwable t) {
             CabinLogger.error("Unhandled error: " + t.getMessage(), t);
             GlobalExceptionHandler.handleException(t, new Response(clientChannel));
-            sendInternalServerError(clientChannel, workerSelectors[nextWorkerIndex]);
+            sendInternalServerError(clientChannel, workerSelectors[nextWorkerIndex.get()]);
         }
     }
 
@@ -490,7 +495,7 @@ public class CabinServer {
             SocketChannel ch = entry.getKey();
             long last = entry.getValue();
             if (now - last > idleConnectionTimeoutMillis) {
-                closeConnection(ch, ch.keyFor(workerSelectors[nextWorkerIndex]).selector());
+                closeConnection(ch, ch.keyFor(workerSelectors[nextWorkerIndex.get()]).selector());
             }
         }
     }
